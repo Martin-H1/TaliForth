@@ -1,0 +1,1 @@
+"C:\Program Files (x86)\Ophis\ophis" --65c02 Tali-main-B001.asm 

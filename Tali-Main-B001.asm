@@ -14,7 +14,7 @@
 ; at $c000 of ROM. If we don't use this much space, change this to 8 kb 
 ; ($e000). Note that we can run into trouble with the py65 emulator in this 
 ; case because it hard-codes the input/output addresses to $f001
-.org $c000
+.org $8000
 
 ; =============================================================================
 ; FORTH CODE 

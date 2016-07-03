@@ -40,15 +40,15 @@
 ; -----------------------------------------------------------------------------
 ; Change these for target system
 
-; 6850 ACIA UART
-.alias ACIAbase $8000           ; ACIA base address
-.alias ACIAcr   ACIAbase+0      ; ACIA control register
-.alias ACIAst   ACIAbase+0      ; ACIA status register
-.alias ACIAtx   ACIAbase+1      ; ACIA transmit buffer 
-.alias ACIArx   ACIAbase+1      ; ACIA receive buffer
+; 6551 ACIA UART
+.alias ACIA1base $7F70          ; ACIA base address
+.alias ACIA1dat  ACIA1base+0     ; ACIA control register
+.alias ACIA1sta  ACIA1base+1     ; ACIA status register
+.alias ACIA1cmd  ACIA1base+2     ; ACIA transmit buffer 
+.alias ACIA1ctl  ACIA1base+3     ; ACIA receive buffer
 
 ; 65c22 VIA I/O Chip
-.alias VIAbase  $A000           ; VIA base address
+.alias VIAbase  $7F60           ; VIA base address
 .alias VIAorb   VIAbase+0       ; Output register for Port B
 .alias VIAora   VIAbase+1       ; Output register for Port A with handshake
 .alias VIAddrb  VIAbase+2       ; Data direction register B
@@ -91,7 +91,7 @@ _ContPost65c02:
         jmp k_initRAM   ; initialize and clear RAM
 
 _ContPostRAM:
-        jsr k_initIO    ; initialize I/O (ACIA, VIA)
+        jsr k_initIO    ; initialize I/O (ACIA1, VIA)
 
         ; Print kernel boot message
         .invoke newline
@@ -189,15 +189,12 @@ _IOTable:
         ; TODO Enable interrupts
 
         ; -------------------------------
-        ; ACIA 6850 data (2 entries)
+        ; ACIA1 6551 data (2 entries)
 
-        .word ACIAcr    ; ACIA control register, for reset
-        .byte %00000011 ; Master reset, required for 6850 after boot
-
-        .word ACIAcr    ; ACIA control register, for configuration
-        ; .byte %00010110 ; no rx IRQ, no tx IRQ, 8 data 1 stop, /64 -> 28.8 baud
-        .byte %10010110 ; rx IRQ, no tx IRQ, 8 data 1 stop, /64 -> 28.8 baud
-        ; .byte %10110110 ; rx IRQ, tx IRQ, 8 data 1 stop, /64 -> 28.8 baud
+        .word ACIA1ctl	  ; ACIA control register, for reset and configuration
+        .byte $1F         ; reset, 19.2K/8/1
+        .word ACIA1cmd    ; ACIA command register, for configuration
+        .byte $0B         ; N parity/echo off/rx int off/ dtr active low
 
         ; -------------------------------
         ; VIA 65c22 data (4 entries)
@@ -227,51 +224,44 @@ k_panic:
         jmp k_resetv       ; Reset the whole machine
 
 ; -----------------------------------------------------------------------------
-; Get a character from the ACIA
-k_getchr: 
+; Get a character from the ACIA (blocking)
+k_getchr:
 .scope
-        ; Hack for py65mon for testing, comment out for production code
-        ; This is the blocking location of the py65mon
-        ; +PY65+
-        lda py65_getc
+*       lda   ACIA1Sta           ; Serial port status             
+        and   #$08               ; is recvr full
+        beq   -                  ; no char to get
+        lda   ACIA1dat           ; get chr
         rts
-
-        ; Production code, polling version. Only reached if testing code 
-        ; disabled. Waits (blocks) until chacter received. 
-; *       lda ACIAst              ; check status register
-        ; lsr                     ; data received?
-        ; bcc -                   ; if no, loop
-        ; lda ACIArx              ; get character
-        ; rts
-
-        ; Production code, interrupt version. Only reached if testing code
-        ; and polled version disabled. Does not wait (block) until char
-        ; received. Assumes that this is the only interrupt in the system
-        ; TODO rewrite for various interrupts
-        ; lda ACIArx              ; get character
-        ; rts
-
 .scend
+
+;
+; non-waiting get character routine 
+;
+k_getchr_async:
+.scope
+        clc
+        lda   ACIA1Sta           ; Serial port status
+        and   #$08               ; mask rcvr full bit
+        beq   +
+        lda   ACIA1dat           ; get chr
+        sec
+*       rts
+.scend
+
 ; -----------------------------------------------------------------------------
 ; Write a character to the ACIA. Assumes character is in A. Because this is
 ; "write" command, there is no line feed at the end
 k_wrtchr: 
 .scope
-        ; Hack for py65mon for testing, comment out for production code
-        ; +PY65+
-        sta py65_putc
-        rts
-
-        ; Production code, polled. Only reached if testing code disabled.
-        ; TODO change this to interrupt version
         pha                     ; save the character to print
-        lda #%00000010          ; see if transmitter buffer is empty
-*       bit ACIAst              ; check status register
-        beq -                   ; if no, loop
-        pla                     ; get character back
-        sta ACIAtx              ; print
-        rts
+*       lda   ACIA1Sta          ; serial port status
+        and   #$10              ; is tx buffer empty
+        beq   -                 ; no
+        pla                     ; get chr
+        sta   ACIA1dat          ; put character to Port
+        rts                     ; done
 .scend
+
 ; -----------------------------------------------------------------------------
 ; Write a string to the ACIA. Assumes string address is in k_str. 
 ; If we come here from k_prtstr, we add a line feed
