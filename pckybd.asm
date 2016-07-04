@@ -132,10 +132,10 @@
 ;
 ;****************************************************************************
 ;
-; I/O Port definitions
+; I/O Port definitions use VIA1 port B
 
-.alias kbportreg $7f01             ; 6522 IO port register B
-.alias kbportddr $7f03             ; 6522 IO data direction register B
+.alias kbportreg VIA1orb           ; 6522 IO port register B
+.alias kbportddr VIA1ddrb          ; 6522 IO data direction register B
 .alias clk       $10               ; 6522 IO port clock bit mask (PB4)
 .alias data      $20               ; 6522 IO port data bit mask  (PB5)
 
@@ -147,10 +147,10 @@
 ;
 ; temportary storage locations (zero page can be used but not necessary)
 
-.alias byte      $02D0             ; byte send/received
-.alias parity    $02D1             ; parity holder for rx
-.alias special   $02d2             ; ctrl, shift, caps and kb LED holder 
-.alias lastbyte  $02d3             ; last byte received
+.alias byte      zp1               ; byte send/received
+.alias parity    zp2               ; parity holder for rx
+.alias special   zp3               ; ctrl, shift, caps and kb LED holder 
+.alias lastbyte  zp4               ; last byte received
 
 ; bit definitions for the special variable
 ; (1 is active, 0 inactive)
