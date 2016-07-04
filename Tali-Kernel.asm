@@ -13,8 +13,6 @@
 ; Used with the Ophis assembler and the py65mon simulator
 ; -----------------------------------------------------------------------------
 
-; SIMULATOR LINES MARKED WITH "+PY65+", CHANGE THESE FOR PRODUCTION
-
 ;==============================================================================
 ; DEFINITIONS
 ;==============================================================================
@@ -27,44 +25,54 @@
                         ; redefined by Forth 
 
 ; -----------------------------------------------------------------------------
-; Definitions for the py65mon emulator TODO comment for final code
-; -----------------------------------------------------------------------------
-; Note these are in a really, really bad place because they are easily 
-; overwritten if our code reaches from $e000 into $f000
-.alias py65_putc    $f001
-.alias py65_getc    $f004
-; .alias py65_blkgetc $f005       ; TODO Removed in new versions of py65
-
-; -----------------------------------------------------------------------------
 ; CHIP ADDRESSES 
 ; -----------------------------------------------------------------------------
 ; Change these for target system
 
 ; 6551 ACIA UART
 .alias ACIA1base $7F70          ; ACIA base address
-.alias ACIA1dat  ACIA1base+0     ; ACIA control register
-.alias ACIA1sta  ACIA1base+1     ; ACIA status register
-.alias ACIA1cmd  ACIA1base+2     ; ACIA transmit buffer 
-.alias ACIA1ctl  ACIA1base+3     ; ACIA receive buffer
+.alias ACIA1dat  ACIA1base+0    ; ACIA control register
+.alias ACIA1sta  ACIA1base+1    ; ACIA status register
+.alias ACIA1cmd  ACIA1base+2    ; ACIA transmit buffer 
+.alias ACIA1ctl  ACIA1base+3    ; ACIA receive buffer
 
-; 65c22 VIA I/O Chip
-.alias VIAbase  $7F60           ; VIA base address
-.alias VIAorb   VIAbase+0       ; Output register for Port B
-.alias VIAora   VIAbase+1       ; Output register for Port A with handshake
-.alias VIAddrb  VIAbase+2       ; Data direction register B
-.alias VIAddra  VIAbase+3       ; Data direction register A
-.alias VIArt1l  VIAbase+4       ; Read Timer 1 Counter lo-order byte
-.alias VIArt1h  VIAbase+5       ; Read Timer 1 Counter hi-order byte
-.alias VIAat1l  VIAbase+6       ; Access Timer 1 Counter lo-order byte
-.alias VIAat1h  VIAbase+7       ; Access Timer 1 Counter hi-order byte
-.alias VIArt2l  VIAbase+8       ; Read Timer 2 Counter lo-order byte
-.alias VIArt2h  VIAbase+9       ; Read Timer 2 Counter hi-order byte
-.alias VIAser   VIAbase+$A      ; Serial I/O shirt register
-.alias VIAacr   VIAbase+$B      ; Auxiliary Control Register
-.alias VIApcr   VIAbase+$C      ; Peripheral control register
-.alias VIAifr   VIAbase+$D      ; Interrupt flag register
-.alias VIAier   VIAbase+$E      ; Interrupt enable register
-.alias VIAorah  VIAbase+$F      ; Output register for Port A without handshake
+; 65c22 VIA 1 I/O Chip
+.alias VIA1base  $7F50          ; VIA1 base address
+.alias VIA1orb   VIA1base+0     ; Output register for Port B
+.alias VIA1ora   VIA1base+1     ; Output register for Port A with handshake
+.alias VIA1ddrb  VIA1base+2     ; Data direction register B
+.alias VIA1ddra  VIA1base+3     ; Data direction register A
+.alias VIA1rt1l  VIA1base+4     ; Read Timer 1 Counter lo-order byte
+.alias VIA1rt1h  VIA1base+5     ; Read Timer 1 Counter hi-order byte
+.alias VIA1at1l  VIA1base+6     ; Access Timer 1 Counter lo-order byte
+.alias VIA1at1h  VIA1base+7     ; Access Timer 1 Counter hi-order byte
+.alias VIA1rt2l  VIA1base+8     ; Read Timer 2 Counter lo-order byte
+.alias VIA1rt2h  VIA1base+9     ; Read Timer 2 Counter hi-order byte
+.alias VIA1ser   VIA1base+$A    ; Serial I/O shirt register
+.alias VIA1acr   VIA1base+$B    ; Auxiliary Control Register
+.alias VIA1pcr   VIA1base+$C    ; Peripheral control register
+.alias VIA1ifr   VIA1base+$D    ; Interrupt flag register
+.alias VIA1ier   VIA1base+$E    ; Interrupt enable register
+.alias VIA1orah  VIA1base+$F    ; Output register for Port A without handshake
+
+; 65c22 VIA 2 I/O Chip
+.alias VIA2base  $7F60          ; VIA2 base address
+.alias VIA2orb   VIA2base+0     ; Output register for Port B
+.alias VIA2ora   VIA2base+1     ; Output register for Port A with handshake
+.alias VIA2ddrb  VIA2base+2     ; Data direction register B
+.alias VIA2ddra  VIA2base+3     ; Data direction register A
+.alias VIA2rt1l  VIA2base+4     ; Read Timer 1 Counter lo-order byte
+.alias VIA2rt1h  VIA2base+5     ; Read Timer 1 Counter hi-order byte
+.alias VIA2at1l  VIA2base+6     ; Access Timer 1 Counter lo-order byte
+.alias VIA2at1h  VIA2base+7     ; Access Timer 1 Counter hi-order byte
+.alias VIA2rt2l  VIA2base+8     ; Read Timer 2 Counter lo-order byte
+.alias VIA2rt2h  VIA2base+9     ; Read Timer 2 Counter hi-order byte
+.alias VIA2ser   VIA2base+$A    ; Serial I/O shirt register
+.alias VIA2acr   VIA2base+$B    ; Auxiliary Control Register
+.alias VIA2pcr   VIA2base+$C    ; Peripheral control register
+.alias VIA2ifr   VIA2base+$D    ; Interrupt flag register
+.alias VIA2ier   VIA2base+$E    ; Interrupt enable register
+.alias VIA2orah  VIA2base+$F    ; Output register for Port A without handshake
 
 ; -----------------------------------------------------------------------------
 ; Zero Page Defines
@@ -91,7 +99,7 @@ _ContPost65c02:
         jmp k_initRAM   ; initialize and clear RAM
 
 _ContPostRAM:
-        jsr k_initIO    ; initialize I/O (ACIA1, VIA)
+        jsr k_initIO    ; initialize I/O (ACIA1, VIA1, and VIA2)
 
         ; Print kernel boot message
         .invoke newline
@@ -197,16 +205,16 @@ _IOTable:
         .byte $0B         ; N parity/echo off/rx int off/ dtr active low
 
         ; -------------------------------
-        ; VIA 65c22 data (4 entries)
+        ; VIA1 65c22 data (4 entries)
         ; Reset makes all lines input, clears all internal registers
 
-        .word VIAier    ; VIA Interrupt Enable Register
+        .word VIA1ier    ; VIA1 Interrupt Enable Register
         .byte %01111111 ;  - disable all interrupts (automatic after reset)
-        .word VIAddrA   ; VIA data dir reg Port A
+        .word VIA1ddrA   ; VIA1 data dir reg Port A
         .byte $00       ;  - set all pins to input
-        .word VIAddrB   ; VIA data dir reg Port B
+        .word VIA1ddrB   ; VIA1 data dir reg Port B
         .byte $FF       ;  - set all pins to output
-        .word VIApcr    ; VIA peripheral control register
+        .word VIA1pcr    ; VIA1 peripheral control register
         .byte $00       ;  - make all control lines inputs
 .scend
 
@@ -214,6 +222,9 @@ _IOTable:
 ; KERNEL FUNCTIONS AND SUBROUTINES
 ; =============================================================================
 ; These start with k_
+
+
+.require "pckybd.asm"
 
 ; -----------------------------------------------------------------------------
 ; Kernel panic: Don't know what to do, so just reset the whole system. 
@@ -294,22 +305,22 @@ _leave:
 
 .scend
 ; -----------------------------------------------------------------------------
-; Write characters to the VIA ports. TODO code these. 
+; Write characters to the VIA1 ports. TODO code these. 
 
 .scope
-k_getchrVIAa:
+k_getchrVIA1a:
         nop
         rts
 
-k_getchrVIAb:
+k_getchrVIA1b:
         nop
         rts
 
-k_wrtchrVIAa:
+k_wrtchrVIA1a:
         nop
         rts
 
-k_wrtchrVIAb:
+k_wrtchrVIA1b:
         nop
         rts
 .scend

@@ -584,14 +584,14 @@ _c1:            dey
 
                 ; PORT 1: VIA Port A output
                 ply
-                jmp k_wrtchrVIAa        ; JSR/RTS
+                jmp k_wrtchrVIA1a       ; JSR/RTS
 
 _c2:            dey
                 bne _err
 
                 ; PORT 2: VIA Port B output
                 ply
-                jmp k_wrtchrVIAb        ; JSR/RTS
+                jmp k_wrtchrVIA1b       ; JSR/RTS
 
 _err:           lda #$08        ; string code for unknown channel 
                 jmp error
@@ -650,14 +650,14 @@ _c1:            dey             ; if 1 this turns to 0
 
                 ; PORT 1: VIA Port A input
                 ply
-                jmp k_getchrVIAa        ; JSR/RTS
+                jmp k_getchrVIA1a       ; JSR/RTS
 
 _c2:            dey
                 bne _err
 
                 ; PORT 2: VIA Port B input
                 ply
-                jmp k_getchrVIAb        ; JSR/RTS
+                jmp k_getchrVIA1b       ; JSR/RTS
 
 _err:           lda #$08        ; string code for wrong channel
                 jmp error       ; JSR/RTS
