@@ -86,6 +86,10 @@
 .alias k_str_l  $D4 ; lo byte of string address for print routine
 .alias k_str_h  $D5 ; hi byte of string address for print routine
 .alias zp0      $D6 ; General use ZP entry
+.alias zp1      $D7 ; General use ZP entry
+.alias zp2      $D8 ; General use ZP entry
+.alias zp3      $D9 ; General use ZP entry
+.alias zp4      $DA ; General use ZP entry
 
 ; =============================================================================
 ; INITIALIZATION
