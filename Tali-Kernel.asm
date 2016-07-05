@@ -168,7 +168,7 @@ k_initIO:
         sta k_com1_h
 
         ; Change next value for different hardware
-        ldx #$06                ; number of ports to initialize, ends when zero
+        ldx #$08                ; number of ports to initialize, ends when zero
 
 _loop:
         ldy #$00                ; clear index
@@ -192,8 +192,10 @@ _loop:
         
 *       dex                     ; loop counter
         bne _loop
-
         rts
+
+        jsr   kbinit            ; init the keyboard, LEDs, and flags
+
 
 _IOTable:
         ; Each entry has three bytes: Address of register (lo, hi) and 
@@ -209,17 +211,24 @@ _IOTable:
         .byte $0B         ; N parity/echo off/rx int off/ dtr active low
 
         ; -------------------------------
-        ; VIA1 65c22 data (4 entries)
+        ; VIA1 65c22 data (6 entries)
         ; Reset makes all lines input, clears all internal registers
 
-        .word VIA1ier    ; VIA1 Interrupt Enable Register
-        .byte %01111111 ;  - disable all interrupts (automatic after reset)
-        .word VIA1ddrA   ; VIA1 data dir reg Port A
-        .byte $00       ;  - set all pins to input
-        .word VIA1ddrB   ; VIA1 data dir reg Port B
-        .byte $FF       ;  - set all pins to output
-        .word VIA1pcr    ; VIA1 peripheral control register
-        .byte $00       ;  - make all control lines inputs
+        .word VIA1ier     ; VIA1 Interrupt Enable Register
+        .byte %01111111   ;  - disable all interrupts (automatic after reset)
+        .word VIA1acr
+        .byte %01000000	  ; $40 T1 free-running (PB7 output disabled)/T2
+                          ; interval counter/shift registers disabled/
+                          ; port A latch disabled/port B latch disabled
+        .word VIA1pcr     ; VIA1 peripheral control register
+        .byte %11011110	  ;$DE CB2 manual L/ CB1 IF set on L->H/ CA2 manual
+        .word VIA1ddrB    ; VIA1 data dir reg Port B
+        .byte $00         ;  - set all pins to input
+        .word VIA1ifr
+        .byte $00         ; clear IFR
+
+        .word VIA1ddrA    ; VIA1 data dir reg Port A
+        .byte %10000000   ;$80 'oiiiiiii' PA.7=ATN_OUT
 .scend
 
 ; =============================================================================
@@ -239,7 +248,7 @@ k_panic:
         jmp k_resetv       ; Reset the whole machine
 
 ; -----------------------------------------------------------------------------
-; Get a character from the ACIA (blocking)
+; Get a character from the ACIA (blocking)         jsr KBINPUT rts
 k_getchr:
 .scope
 *       lda   ACIA1Sta           ; Serial port status             
