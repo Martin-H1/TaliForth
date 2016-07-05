@@ -211,6 +211,8 @@
 kbreinit:      jsr   kbinit            ; 
 KBINPUT:
 .scope
+               phx                     ; save x and y for zero side effects.
+               phy
                jsr   kbtscrl           ; turn off scroll lock (ready to input)  
                bne   kbinput           ; ensure its off 
 kbinput1:      jsr   kbget             ; get a code (wait for a key to be pressed)
@@ -264,6 +266,8 @@ kbdone:        phx                     ; save ascii to stack
 kbdone1:       jsr   kbtscrl           ; turn on scroll lock (not ready to receive)
                beq   kbdone1           ; ensure scroll lock is on
                pla                     ; get ASCII code
+               ply
+               plx
                rts                     ; return to calling program
 ;
 ;******************************************************************************
@@ -443,6 +447,7 @@ kbscan1:       lda   #clk              ;
 kbscan2:       jsr   kbdis             ; disable the receiver so other routines get it
 ; Three alternative exits if data is ready to be received: Either return or jmp to handler
                rts                     ; return (A<>0, A=clk bit mask value from kbdis)
+.scend
 ;               jmp   KBINPUT           ; if key pressed, decode it with KBINPUT
 ;               jmp   KBGET             ; if key pressed, decode it with KBGET
 ;
@@ -452,6 +457,7 @@ kbflush:       lda   #$f4              ; flush buffer
 ; send a byte to the keyboard
 ;
 kbsend:        sta   byte              ; save byte to send
+.scope
                phx                     ; save registers
                phy                     ; 
                sta   lastbyte          ; keep just in case the send fails
