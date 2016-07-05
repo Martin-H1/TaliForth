@@ -15,6 +15,9 @@
 ; ($e000). Note that we can run into trouble with the py65 emulator in this 
 ; case because it hard-codes the input/output addresses to $f001
 .org $8000
+	nop
+
+.advance $c000
 
 ; =============================================================================
 ; FORTH CODE 
