@@ -168,7 +168,7 @@ k_initIO:
         sta k_com1_h
 
         ; Change next value for different hardware
-        ldx #$08                ; number of ports to initialize, ends when zero
+        ldx #$02                ; number of ports to initialize, ends when zero
 
 _loop:
         ldy #$00                ; clear index
@@ -192,9 +192,9 @@ _loop:
         
 *       dex                     ; loop counter
         bne _loop
+        jsr   kbinit            ; init the keyboard, LEDs, and flags
         rts
 
-        jsr   kbinit            ; init the keyboard, LEDs, and flags
 
 
 _IOTable:
@@ -250,6 +250,9 @@ k_panic:
 ; -----------------------------------------------------------------------------
 ; Get a character from the ACIA (blocking)         jsr KBINPUT rts
 k_getchr:
+	jsr KBINPUT
+	rts
+
 .scope
 *       lda   ACIA1Sta           ; Serial port status             
         and   #$08               ; is recvr full
