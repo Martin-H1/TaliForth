@@ -19,3 +19,5 @@ These will be considered once Tali Forth has reached its first full release, not
 
 - add CASE, TIME&DATE, THROW/CATCH
 - warn when we redefine a word already in the dictionary
+- add support for video.
+- add support for IEC file I/O

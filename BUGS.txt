@@ -5,6 +5,7 @@ This version:  10. Feb 2015
 
 This is the list of known issues with Tali Forth BETA. 
 
--- CURRENTLY EMPTY -- (but don't let that fool you)
+- Upon cold start the high level words aren't initialized. A reset defines them, likely because something they depend upon is now available.
 
+- The keybpard routine has the LED code commented out because it locks up on my adesso mini keyboard.
 (END)
