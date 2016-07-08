@@ -192,10 +192,11 @@ _loop:
         
 *       dex                     ; loop counter
         bne _loop
-        jsr   kbinit            ; init the keyboard, LEDs, and flags
+
+        ; Call device driver init routines here.
+        jsr kbinit            ; init the keyboard, LEDs, and flags
+        jsr VInitDisp
         rts
-
-
 
 _IOTable:
         ; Each entry has three bytes: Address of register (lo, hi) and 
@@ -231,13 +232,19 @@ _IOTable:
         .byte %10000000   ;$80 'oiiiiiii' PA.7=ATN_OUT
 .scend
 
+
+; =============================================================================
+; Device drivers here:
+; =============================================================================
+;.require "cbm_iec.asm"
+.require "pckybd.asm"
+.require "video.asm"
+
+
 ; =============================================================================
 ; KERNEL FUNCTIONS AND SUBROUTINES
 ; =============================================================================
 ; These start with k_
-
-
-.require "pckybd.asm"
 
 ; -----------------------------------------------------------------------------
 ; Kernel panic: Don't know what to do, so just reset the whole system. 
@@ -248,49 +255,19 @@ k_panic:
         jmp k_resetv       ; Reset the whole machine
 
 ; -----------------------------------------------------------------------------
-; Get a character from the ACIA (blocking)         jsr KBINPUT rts
-k_getchr:
+; The PS/2 keyboard and video together are the console.
+
+.scope
+k_getchrConsole:
 	jsr KBINPUT
 	rts
 
-.scope
-*       lda   ACIA1Sta           ; Serial port status             
-        and   #$08               ; is recvr full
-        beq   -                  ; no char to get
-        lda   ACIA1dat           ; get chr
+k_wrtchrConsole:
+        jsr VOutput
         rts
-.scend
-
-;
-; non-waiting get character routine 
-;
-k_getchr_async:
-.scope
-        clc
-        lda   ACIA1Sta           ; Serial port status
-        and   #$08               ; mask rcvr full bit
-        beq   +
-        lda   ACIA1dat           ; get chr
-        sec
-*       rts
-.scend
 
 ; -----------------------------------------------------------------------------
-; Write a character to the ACIA. Assumes character is in A. Because this is
-; "write" command, there is no line feed at the end
-k_wrtchr: 
-.scope
-        pha                     ; save the character to print
-*       lda   ACIA1Sta          ; serial port status
-        and   #$10              ; is tx buffer empty
-        beq   -                 ; no
-        pla                     ; get chr
-        sta   ACIA1dat          ; put character to Port
-        rts                     ; done
-.scend
-
-; -----------------------------------------------------------------------------
-; Write a string to the ACIA. Assumes string address is in k_str. 
+; Write a string to the console. Assumes string address is in k_str. 
 ; If we come here from k_prtstr, we add a line feed
 .scope
 k_wrtstr:
@@ -306,7 +283,7 @@ k_prtstr:
 
 *       lda (k_str_l),y         ; get the string via address from zero page
         beq _done               ; if it is a zero, we quit and leave
-        jsr k_wrtchr            ; if not, write one character
+        jsr k_wrtchrConsole     ; if not, write one character
         iny                     ; get the next byte
         bra -              
 
@@ -315,28 +292,58 @@ _done:
         beq _leave
         .invoke newline
 
-_leave: 
+_leave:
         ply                     
         rts
 
 .scend
+
 ; -----------------------------------------------------------------------------
-; Write characters to the VIA1 ports. TODO code these. 
-
+; Get a character from the ACIA (blocking)
+k_getchrACIA:
 .scope
-k_getchrVIA1a:
+*       lda   ACIA1Sta           ; Serial port status             
+        and   #$08               ; is recvr full
+        beq   -                  ; no char to get
+        lda   ACIA1dat           ; get chr
+        rts
+.scend
+
+;
+; non-waiting get character routine 
+;
+k_getchr_asyncACIA:
+.scope
+        clc
+        lda   ACIA1Sta           ; Serial port status
+        and   #$08               ; mask rcvr full bit
+        beq   +
+        lda   ACIA1dat           ; get chr
+        sec
+*       rts
+.scend
+
+; -----------------------------------------------------------------------------
+; Write a character to the ACIA. Assumes character is in A. Because this is
+; "write" command, there is no line feed at the end
+k_wrtchrACIA:
+.scope
+        pha                     ; save the character to print
+*       lda   ACIA1Sta          ; serial port status
+        and   #$10              ; is tx buffer empty
+        beq   -                 ; no
+        pla                     ; get chr
+        sta   ACIA1dat          ; put character to Port
+        rts                     ; done
+.scend
+
+; -----------------------------------------------------------------------------
+; The IEC port is a byte oriented input/output device.
+k_getchrIEC:
         nop
         rts
 
-k_getchrVIA1b:
-        nop
-        rts
-
-k_wrtchrVIA1a:
-        nop
-        rts
-
-k_wrtchrVIA1b:
+k_wrtchrIEC:
         nop
         rts
 .scend

@@ -43,7 +43,7 @@
 ; Note this was previously a subroutine k_wrtlfcr
 .macro newline
         lda #AscLF
-        jsr k_wrtchr
+        jsr k_wrtchrConsole
 .macend
 
 ;==============================================================================

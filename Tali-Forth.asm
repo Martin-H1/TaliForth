@@ -569,7 +569,6 @@ f_nib2asc:
 ; OUTPUT CHARACTER TO CURRENT PORT. This is a general routine used by 
 ; EMIT, TYPE, SPACE and others. Assumes that character to print is in A. 
 ; If this gets any larger than three channels, consider making this a table.
-; TODO test VIA routines
 .scope
 f_putchr:       phy
                 ldy OUTPORT
@@ -577,21 +576,21 @@ f_putchr:       phy
 
                 ; PORT 0: DEFAULT, Terminal, ASCI 
                 ply
-                jmp k_wrtchr    ; JSR/RTS
+                jmp k_wrtchrConsole    ; JSR/RTS
 
 _c1:            dey
                 bne _c2
 
-                ; PORT 1: VIA Port A output
+                ; PORT 1: ACIA Serial port.
                 ply
-                jmp k_wrtchrVIA1a       ; JSR/RTS
+                jmp k_wrtchrACIA       ; JSR/RTS
 
 _c2:            dey
                 bne _err
 
                 ; PORT 2: VIA Port B output
                 ply
-                jmp k_wrtchrVIA1b       ; JSR/RTS
+                jmp k_wrtchrIEC       ; JSR/RTS
 
 _err:           lda #$08        ; string code for unknown channel 
                 jmp error
@@ -643,21 +642,21 @@ f_getchr:       phy
 
                 ; PORT 0: DEFAULT, Terminal, ASCI 
                 ply
-                jmp k_getchr    ; JSR/RTS
+                jmp k_getchrConsole    ; JSR/RTS
 
 _c1:            dey             ; if 1 this turns to 0
                 bne _c2
 
-                ; PORT 1: VIA Port A input
+                ; PORT 1: ACIA serial
                 ply
-                jmp k_getchrVIA1a       ; JSR/RTS
+                jmp k_getchrACIA       ; JSR/RTS
 
 _c2:            dey
                 bne _err
 
-                ; PORT 2: VIA Port B input
+                ; PORT 2: IEC input
                 ply
-                jmp k_getchrVIA1b       ; JSR/RTS
+                jmp k_getchrIEC       ; JSR/RTS
 
 _err:           lda #$08        ; string code for wrong channel
                 jmp error       ; JSR/RTS
