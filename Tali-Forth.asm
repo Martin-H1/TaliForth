@@ -166,7 +166,11 @@ COLD:   ; Load default values to registers and pointers
         stz CIBN+1
 
         ; Reset stack pointer
-        ldx #SP0        
+        ldx #SP0
+
+        ; For paranoia, set state to interpret.
+        stz STATE
+        stz STATE+1
 
 ; -----------------------------------------------------------------------------
 ; COMPILE HIGH-LEVEL COMMANDS 
@@ -624,10 +628,12 @@ _common:        phy
                 bra -
                 
 _linefeed:      ; get flag to see if we print a final linefeed or not 
-                lda #AscLF
                 ply
+                beq _done
+                lda #AscCR
+                jsr f_putchr
+                lda #AscLF
                 bne f_putchr    ; JSR/RTS
-
 _done:          rts
 .scend
 ; -----------------------------------------------------------------------------

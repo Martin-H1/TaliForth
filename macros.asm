@@ -42,6 +42,8 @@
 ; MACRO for printing a line feed. Use with ".invoke newline".
 ; Note this was previously a subroutine k_wrtlfcr
 .macro newline
+        lda #AscCR
+        jsr k_wrtchrConsole
         lda #AscLF
         jsr k_wrtchrConsole
 .macend
