@@ -45,7 +45,6 @@
 ; RAM required is TODO kb
 
 .alias RamStart         $0000   ; must include Zero Page and Stack
-.alias RamSize          $7EFF   ; default $8000 for 32 kb x 8 bit RAM
 .alias RamEnd           [RamStart + RamSize]     
 .alias PadOffset        $FF     ; Distance between Pad area and CP 
 

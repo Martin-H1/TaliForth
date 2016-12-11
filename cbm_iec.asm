@@ -573,16 +573,16 @@ IACPLP4:			; clock in bits
 	LDA D1ORAH
 	CMP D1ORAH
 	BNE IACPLP4
-	LSR A
+	LSR
 	BCC IACPLP4
-	LSR A
+	LSR
 	ROR CYCLE
 
 IACPLP5:
 	LDA D1ORAH
 	CMP D1ORAH
 	BNE IACPLP5
-	LSR A
+	LSR
 	BCS IACPLP5
 	DEC CNTDN
 	BNE IACPLP4
@@ -761,22 +761,22 @@ OTDSBU:
 	SEI			;kill interrupts
 	JSR SOUT1		;send DATA=1
 	JSR SDCLK		;Get clk_in/data_in status
-	LSR A			;shift to data_in
+	LSR			;shift to data_in
 	BCS FLGERR		;data_in=1, device not present
 	JSR SCLK1		;got device ack, ack with CLK=1
 	BIT SBITCF		;more bits?
 	BPL OTDLP3		;$EE66 yes, skip EOI handler
 OTDLP1:
 	JSR SDCLK		;wait for DIn=H
-	LSR A			;roll data into carry
+	LSR			;roll data into carry
 	BCC OTDLP1		;$EE5A
 OTDLP2:
 	JSR SDCLK		;wait for DIn=L
-	LSR A			;roll data into carry
+	LSR			;roll data into carry
 	BCS OTDLP2		;$EE60
 OTDLP3:
 	JSR SDCLK		;wait again for DIn=H
-	LSR A			;roll data into carry
+	LSR			;roll data into carry
 	BCC OTDLP3		;$EE66
 	JSR SCLK0		;send CLK=0
 	LDA #$08		;bit counter
@@ -785,8 +785,8 @@ OTDLP4:
 	LDA D1ORAH		;wait for idle
 	CMP D1ORAH			
 	BNE OTDLP4
-	LSR A			
-	LSR A			; LSR to data_in 
+	LSR			
+	LSR			; LSR to data_in 
 	BCC FLGER03		; data_in=0 time-out error
 	ROR BSOUT		;get bit
 	BCS OTDSB1		; if 1, send DATA=1
@@ -813,7 +813,7 @@ OTDLP5:
 	AND #%00100000		;$20
 	BNE FLGER03		; bus timeout
 	JSR SDCLK		;wait for data_in=L
-	LSR A
+	LSR
 	BCS OTDLP5		;$EEA5
 	CLI
 	RTS
@@ -987,8 +987,8 @@ SERLO_S1:
 	JSR ACPTR		;get char
 	STA EAL			;save it as start address L
 	LDA CSTAT		;status
-	LSR A
-	LSR A
+	LSR
+	LSR
 	BCS SERLDEX		;$F5C7 timeout? Yes, error
 	JSR ACPTR		;get next char
 	STA EAL+1		;save as start address H
@@ -1006,8 +1006,8 @@ SERLO_S2:
 	JSR ACPTR		;get next char - program byte
 	TAX			;save it
 	LDA CSTAT		;check status
-	LSR A
-	LSR A
+	LSR
+	LSR
 	BCS SERLDLP		;$F58A error, interrupt process
 	TXA			;restore char
 	LDY IOFLG2		;check load/verify flag
@@ -1157,7 +1157,7 @@ SDCLK:
 	LDA D1ORAH		;load register
 	CMP D1ORAH		;any change?
 	BNE SDCLK		;yes (unstable), loop
-	LSR A			;shift PA.0 (clk_in) to CY
+	LSR			;shift PA.0 (clk_in) to CY
 	RTS			
 
 
