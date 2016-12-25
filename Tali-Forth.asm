@@ -2285,9 +2285,10 @@ l_cr:           bra a_cr
                 .word z_cr
                 .byte "CR"
 
-a_cr:           lda #AscLF      ; Line Feed 
+a_cr:           lda #AscCR
                 jsr f_putchr
-
+                lda #AscLF      ; Line Feed 
+                jsr f_putchr
 z_cr:           rts
 ; -----------------------------------------------------------------------------
 ; BL ( -- c )
