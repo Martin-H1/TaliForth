@@ -1,3 +1,5 @@
+rm tali-sbc.bin
+rm tali-l-star.bin
 "C:\Program Files (x86)\Ophis\ophis" --65c02 Tali-main-B001.asm 
 mv ophis.bin tali-sbc.bin
 "C:\Program Files (x86)\Ophis\ophis" --65c02 Tali-Main-L-Star.asm
