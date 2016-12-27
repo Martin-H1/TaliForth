@@ -2,7 +2,7 @@
 ; Scot W. Stevenson <scot.stevenson@gmail.com>
 ;
 ; First version 19. Jan 2014
-; This version  10. Feb 2015 (first BETA)
+; This version  26. Dec 2015 (BETA)
 ; -----------------------------------------------------------------------------
 
 ; This program is placed in the public domain. 
@@ -6375,22 +6375,13 @@ a_ploop:        ; compile (+LOOP) -- don't call f_cmpljsr because this must
 
                 ; complete compile of DO/?DO by replacing the six
                 ; dummy bytes by PHA instructions. The address where 
-                ; they are located is below the RTS on the Return 
-                ; Stack. This is a lot of work for something so little
-                ; and can probably be improved
-                ply             ; LSB
-                sty TMPCNT      ; not used as counter 
-                ply             ; MSB
-
-                pla             ; LSB of target address
+                ; they are located is on the Data Stack
+                lda 1,x
                 sta TMPADR
-                pla             ; MSB
+                lda 2,x
                 sta TMPADR+1
-
-                ; replace RTS address before something bad happens
-                phy             ; MSB
-                ldy TMPCNT
-                phy             ; LSB
+                inx
+                inx
 
                 ; because of the way that RTS works we don't need to 
                 ; save CP, but CP-1
@@ -6470,6 +6461,25 @@ a_unloop:       ; drop fudge number (limit/start) from DO/?DO off the
 
 z_unloop:       rts
 .scend
+
+
+; ----------------------------------------------------------------------------
+; EXIT ( -- )
+; Return control to the calling definition immediately. We have to get rid of all
+; the loop parameter stuff with UNLOOP if we do this; user must also have gotten
+; everything off the Return Stack put there.
+l_exit:         bra a_exit
+                .byte NC+CO+$04 
+                .word l_unloop    ; link to UNLOOP
+                .word z_exit
+                .byte "EXIT"
+
+.scope
+a_exit:         rts
+
+z_exit:         rts     ; dummy for compile only
+.scend
+
 ; ----------------------------------------------------------------------------
 ; J ( -- n ) (R: n -- n)
 ; Copy second loop counter from Return Stack to stack. Note we use a fudge
@@ -6480,7 +6490,7 @@ z_unloop:       rts
 ; TODO test this 
 l_j:            bra a_j
                 .byte NC+CO+$01 
-                .word l_unloop    ; link to UNLOOP
+                .word l_exit      ; link to EXIT
                 .word z_j
                 .byte "J"
 
@@ -6669,27 +6679,14 @@ a_do:           ; DO and ?DO share most of their code, use the FLAG2 to
                 ; determine which is which.
                 stz FLAG2       ; this is the original
 
-do_common:      ; we push HERE to the 65c02's stack so LOOP/+LOOP
-                ; knows where to compile the PHA instructions. We put this
-                ; on the Return Stack so we avoid getting mixed up in 
-                ; IF/THEN and other stuff that uses the Data Stack
-
-                ; but first we need to move the actual return address
-                ; for this routine out of the way
-                ply             ; LSB
-                sty TMPADR
-                ply             ; MSB
-
-                ; now we can save HERE 
-                lda CP+1        ; MSB first
-                pha
-                lda CP
-                pha             ; then LSB
-
-                ; put RTS address back before something bad happens
-                phy             ; MSB
-                ldy TMPADR
-                phy             ; LSB
+do_common:      ; we push HERE to the Data Stack so LOOP/+LOOP
+                ; knows where to compile the PHA instructions. 
+                dex
+                dex
+                lda CP          ; LSB
+                sta 1,x
+                lda CP+1        ; MSB
+                sta 2,x
 
                 ; now we compile six dummy bytes that LOOP/+LOOP will
                 ; replace by the actual LDA/PHA instructions
@@ -7827,7 +7824,7 @@ strtbl: .word fs_title, fs_version, fs_disclaim, fs_typebye     ; 00-03
 ; ----------------------------------------------------------------------------- 
 ; General Forth Strings (all start with fs_)
 fs_title:      .byte "Tali Forth for the 65c02",0
-fs_version:    .byte "Version BETA (10. Feb 2015)",0
+fs_version:    .byte "Version BETA (26. Dec 2016)",0
 fs_disclaim:   .byte "Tali Forth comes with absolutely NO WARRANTY",0
 fs_typebye:    .byte "Type 'bye' to exit",0 
 fs_prompt:     .byte " ok",0
