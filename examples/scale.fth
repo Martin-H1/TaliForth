@@ -1,0 +1,244 @@
+\ Define AY-3-8912 constants
+
+\ The output frequency is equal to the clock frequency divided by 16 and then
+\ divided by the number written to the course and fine pitch registers. So we
+\ can use algebra to figure out the register value for a specific pitch.
+\ Freq = 1,000,000 / 16 / Reg
+\ Freq = 62500 / Reg
+\ Reg = 62500 / Freq
+\ Example Reg = 62500 / 440(A) = 142
+3823 CONSTANT C_0
+3406 CONSTANT D_0
+3034 CONSTANT E_0
+2863 CONSTANT F_0
+2551 CONSTANT G_0
+2273 CONSTANT A_0
+2025 CONSTANT B_0
+1911 CONSTANT C_1
+1703 CONSTANT D_1
+1517 CONSTANT E_1
+1432 CONSTANT F_1
+1278 CONSTANT G_1
+1136 CONSTANT A_1
+1012 CONSTANT B_1
+956 CONSTANT C_2
+851 CONSTANT D_2
+758 CONSTANT E_2
+716 CONSTANT F_2
+638 CONSTANT G_2
+568 CONSTANT A_2
+506 CONSTANT B_2
+478 CONSTANT C_3
+426 CONSTANT D_3
+379 CONSTANT E_3
+358 CONSTANT F_3
+319 CONSTANT G_3
+284 CONSTANT A_3
+253 CONSTANT B_3
+239 CONSTANT C_4
+213 CONSTANT D_4
+190 CONSTANT E_4
+179 CONSTANT F_4
+159 CONSTANT G_4
+142 CONSTANT A_4
+127 CONSTANT B_4
+119 CONSTANT C_5
+107 CONSTANT D_5
+95  CONSTANT E_5
+90  CONSTANT F_5
+80  CONSTANT G_5
+71  CONSTANT A_5
+64  CONSTANT B_5
+59  CONSTANT C_6
+
+HEX
+7F00 CONSTANT WRITE
+7F01 CONSTANT LATCH
+0 CONSTANT AFREQ
+2 CONSTANT BFREQ
+4 CONSTANT CFREQ
+6 CONSTANT NOISE
+7 CONSTANT MIXER
+8 CONSTANT VA
+9 CONSTANT VB
+A CONSTANT VC
+B CONSTANT FL
+C CONSTANT FH
+D CONSTANT ES
+E CONSTANT IA
+F CONSTANT IB
+
+\ Stores the stack value into VA
+: VA!
+  VA LATCH C!
+  WRITE C! ;
+
+\ Stores the stack value into VB
+: VB!
+  VB LATCH C!
+  WRITE C! ;
+
+\ Stores the stack value into VB
+: VC!
+  VC LATCH C!
+  WRITE C! ;
+
+: MIXER!
+  MIXER LATCH C!
+  WRITE C! ;
+
+\ Deposits (value register) from stack to AY-3-8912
+: REG!
+  2DUP
+  LATCH C!
+  FF AND
+  WRITE C!
+  1+
+  LATCH C!
+  8 RSHIFT
+  WRITE C! ;
+
+\ holds a note
+: DELAY
+  800 0 DO
+  LOOP ;
+
+\ creates array ( n -- ) ( i -- addr)
+: ARRAY
+  CREATE CELLS ALLOT
+  DOES> SWAP CELLS + ;
+
+DECIMAL
+
+\ Now use these functions to produce sound
+
+43 ARRAY NOTES
+C_0 0 NOTES !
+D_0 1 NOTES !
+E_0 2 NOTES !
+F_0 3 NOTES !
+G_0 4 NOTES !
+A_0 5 NOTES !
+B_0 6 NOTES !
+C_1 7 NOTES !
+D_1 8 NOTES !
+E_1 9 NOTES !
+F_1 10 NOTES !
+G_1 11 NOTES !
+A_1 12 NOTES !
+B_1 13 NOTES !
+C_2 14 NOTES !
+D_2 15 NOTES !
+E_2 16 NOTES !
+F_2 17 NOTES !
+G_2 18 NOTES !
+A_2 19 NOTES !
+B_2 20 NOTES !
+C_3 21 NOTES !
+D_3 22 NOTES !
+E_3 23 NOTES !
+F_3 24 NOTES !
+G_3 25 NOTES !
+A_3 26 NOTES !
+B_3 27 NOTES !
+C_4 28 NOTES !
+D_4 29 NOTES !
+E_4 30 NOTES !
+F_4 31 NOTES !
+G_4 32 NOTES !
+A_4 33 NOTES !
+B_4 34 NOTES !
+C_5 35 NOTES !
+D_5 36 NOTES !
+E_5 37 NOTES !
+F_5 38 NOTES !
+G_5 39 NOTES !
+A_5 40 NOTES !
+B_5 41 NOTES !
+C_6 42 NOTES !
+
+: SCALE
+  \ Set up the volume and mixer.
+  2 VA!
+  254 MIXER!
+
+  43 0 DO
+    I NOTES @
+    AFREQ REG!
+    DELAY
+  LOOP
+  \ Now turn off the sound.
+  0 VA! ;
+
+: ARPEGGIO_UP
+  A_4 AFREQ REG!
+  DELAY
+  C_5 AFREQ REG!
+  DELAY
+  E_5 AFREQ REG!
+  DELAY
+  G_5 AFREQ REG!
+  DELAY ;
+
+: ARPEGGIO_DOWN
+  A_5 AFREQ REG!
+  DELAY
+  G_5 AFREQ REG!
+  DELAY
+  E_5 AFREQ REG!
+  DELAY
+  C_5 AFREQ REG!
+  DELAY ;
+
+: SONG
+  \ Set up the volume and mixer.
+  248 MIXER!
+
+  \ Start with the pedal tones
+  B_3 BFREQ REG!
+  E_3 CFREQ REG!
+  2 VB!
+  2 VC!
+
+  \ Play the arpeggios sliently to count time.
+  0 VA!
+  ARPEGGIO_UP
+  ARPEGGIO_DOWN
+  ARPEGGIO_UP
+  ARPEGGIO_DOWN
+
+  \ Now turn off the pedal tones and play the arpeggios twice aloud.
+  0 VB!
+  0 VC!
+  2 VA!
+  ARPEGGIO_UP
+  ARPEGGIO_DOWN
+  ARPEGGIO_UP
+  ARPEGGIO_DOWN
+
+  ARPEGGIO_UP
+  ARPEGGIO_DOWN
+  ARPEGGIO_UP
+  ARPEGGIO_DOWN
+
+  \ Start with the pedal tones
+  E_2 BFREQ REG!
+  E_1 CFREQ REG!
+  2 VB!
+  2 VC!
+
+  ARPEGGIO_UP
+  ARPEGGIO_DOWN
+  ARPEGGIO_UP
+  ARPEGGIO_DOWN
+
+  \ Next measure, turn off pedal tones
+  0 VB!
+  0 VC!
+
+  ARPEGGIO_UP
+  ARPEGGIO_DOWN
+  ARPEGGIO_UP
+  ARPEGGIO_DOWN
+
+  0 VA! ;
