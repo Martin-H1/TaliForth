@@ -7620,15 +7620,13 @@ a_fetch:        lda 1,x        ; LSB
                 sta TMPADR+1
                 
                 lda (TMPADR)    ; LSB of address in memory
-                pha 
+                sta 1,x
                 inc TMPADR      
                 bne +
                 inc TMPADR+1 
 
 *               lda (TMPADR)    ; MSB of address in memory
                 sta 2,x
-                pla 
-                sta 1,x
 
 z_fetch:        rts
 ; -----------------------------------------------------------------------------
@@ -7640,17 +7638,15 @@ l_store:        bra a_store
                 .word z_store
                 .byte "!"
 .scope
-a_store:        jsr l_swap
-
-                lda 1,x        ; LSB
-                sta (3,x)
+a_store:        lda 3,x        ; LSB
+                sta (1,x)
                 
-                inc 3,x
+                inc 1,x
                 bne +
-                inc 4,x
+                inc 2,x
 
-*               lda 2,x        ; MSB
-                sta (3,x)
+*               lda 4,x        ; MSB
+                sta (1,x)
 
                 inx             ; 2DROP
                 inx
