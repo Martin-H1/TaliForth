@@ -25,6 +25,7 @@ py65mon.rom: clean $(SOURCES)
 
 tali-l-star.bin: $(APPLE_SOURCES)
 	"C:\Program Files (x86)\Ophis\ophis" --65c02 Tali-Main-L-Star.asm
+	"C:\Users\Martin\github\BinToMon\Release\BinToMon.exe" tali-l-star.bin > tali-l-star.txt
 
 tali-sbc.bin: $(SBC27_SOURCES)
 	"C:\Program Files (x86)\Ophis\ophis" --65c02 Tali-Main-B001.asm
