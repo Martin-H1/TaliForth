@@ -15,6 +15,7 @@
 ; ($e000). Note that we can run into trouble with the py65 emulator in this 
 ; case because it hard-codes the input/output addresses to $f001
 .org $8000
+.outfile "tali-sbc.bin"
 	nop
 
 .alias RamSize          $7EFF   ; default $8000 for 32 kb x 8 bit RAM

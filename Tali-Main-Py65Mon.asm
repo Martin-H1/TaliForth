@@ -1,24 +1,22 @@
 ; -----------------------------------------------------------------------------
 ; MAIN FILE 
-; Tali Forth for the l-star and replica 1
-; Scot W. Stevenson <mheermance@gmail.com>
+; Tali Forth for the 65c02 
+; Scot W. Stevenson <scot.stevenson@gmail.com>
 ;
-; First version  9. Dec 2016
+; First version 19. Jan 2014
+; This version  24. Feb 2014
 ; -----------------------------------------------------------------------------
 
 ; -----------------------------------------------------------------------------
 ; Used with the Ophis assembler and the py65mon simulator
 ; -----------------------------------------------------------------------------
-; This image is designed loaded in high ram via the Woz mon and started with
-; 5A00R
-.org $5900
-.outfile "tali-l-star.bin"
-.word $5A00
-
-.org $5A00
-jmp k_resetv
-
-.alias RamSize          $59FF
+; We assume for the moment that Forth and the Kernel will use 16 kb and start
+; at $c000 of ROM. If we don't use this much space, change this to 8 kb 
+; ($e000). Note that we can run into trouble with the py65 emulator in this 
+; case because it hard-codes the input/output addresses to $f001
+.org $c000
+.outfile "py65mon.rom"
+.alias RamSize          $7FFF
 
 ; =============================================================================
 ; FORTH CODE 
@@ -27,11 +25,19 @@ FORTH:
 
 ; =============================================================================
 ; KERNEL 
-.require "Tali-Kernel-L-Star.asm"
+.require "Tali-Kernel-Py65Mon.asm"
 
 ; =============================================================================
 ; LOAD ASSEMBLER MACROS
 .require "macros.asm"
+
+; =============================================================================
+; INTERRUPT VECTORS
+.advance $FFFA  ; fill with zeros so we get a complete ROM image. 
+
+.word k_nmiv    ; NMI vector 
+.word k_resetv  ; RESET vector
+.word k_irqv    ; IRQ vector 
 
 ; =============================================================================
 ; END
