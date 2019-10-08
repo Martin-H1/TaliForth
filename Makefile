@@ -1,3 +1,22 @@
+# Common set of macros to enable Linux versus Windows portability.
+ifeq ($(OS),Windows_NT)
+    OPHIS = "C:\Program Files (x86)\Ophis\ophis"
+    PY65MON = "C:\Python27\Scripts\py65mon"
+    PYTHON = python
+    RM = del /f /q
+    RMDIR = rmdir /s /q
+    SHELL_EXT = bat
+    TOUCH = type nul >
+else
+    OPHIS = ~/Ophis-2.1/ophis
+    PY65MON = python 
+    PYTHON = python
+    RM = rm -f
+    RMDIR = rm -rf
+    SHELL_EXT = sh
+    TOUCH = touch
+endif
+
 SOURCES =  \
 	Tali-Forth.asm \
 	macros.asm
@@ -21,20 +40,20 @@ SBC27_SOURCES = \
 	video.asm
 
 py65mon.rom: clean $(SOURCES)
-	"C:\Program Files (x86)\Ophis\ophis" --65c02 Tali-Main-Py65Mon.asm
+	$(OPHIS) --65c02 Tali-Main-Py65Mon.asm
 
 tali-l-star.bin: $(APPLE_SOURCES)
-	"C:\Program Files (x86)\Ophis\ophis" --65c02 Tali-Main-L-Star.asm
+	$(OPHIS) --65c02 Tali-Main-L-Star.asm
 	"C:\Users\Martin\github\BinToMon\Release\BinToMon.exe" tali-l-star.bin > tali-l-star.txt
 
 tali-sbc.bin: $(SBC27_SOURCES)
-	"C:\Program Files (x86)\Ophis\ophis" --65c02 Tali-Main-B001.asm
+	$(OPHIS) --65c02 Tali-Main-B001.asm
 
 debug: py65mon.rom
-	"C:\Python27\Scripts\py65mon" -m 65C02 -r py65mon.rom
+	$(PY65MON) -m 65C02 -r py65mon.rom
 
 release: tali-l-star.bin tali-sbc.bin
 
 clean:
 	-$(RM) *.rom
-	-$(RM) *.bin
+	-$(RM) *.bin 
