@@ -183,8 +183,7 @@ COLD:   ; Load default values to registers and pointers
         ldy #$00        
 
 _loop:  ; make room on the Data Stack
-        dex
-        dex
+        `advance
 
         ; put address on Zero Page for easy handling. We end up pointing to the next 
         ; entry in the table. All entries are counted strings
@@ -719,8 +718,7 @@ fc_docon:       ; value is stored in the two bytes after the JSR
                 sta TMPADR2+1
 
                 ; make room on stack and save the value there
-                dex
-                dex
+                `advance
 
                 ; start LDY off with one instead of zero because of how JSR
                 ; stores the address for RTS
@@ -775,8 +773,7 @@ fc_dodoes:      ; Assumes the address of the CFA of the original defining word
                 ; Next on the stack should be the address of the PFA of 
                 ; the calling defined word, say the name of the constant
                 ; we just defined. Push this on the Data Stack.
-                dex
-                dex
+                `advance
 
                 pla 
                 clc 
@@ -857,8 +854,7 @@ l_plit:         bra a_plit
                 .byte "(LITERAL)"
 .scope
 a_plit:         ; make room on stack
-                dex
-                dex
+                `advance
 
                 ; get the value after the command
                 ply             ; LSB
@@ -967,10 +963,7 @@ _getline:       ; Get one line of input from the user. Keelah se'lai!
 
                 ; max number of characters to get. Overwrites the number
                 ; of chars in buffer that SOURCE just returned
-                lda #<TIBSIZE
-                sta 1,x
-                lda #>TIBSIZE
-                sta 2,x
+                `loadtosi TIBSIZE
 
                 ; Get input line, print a space at the end as an offset
                 ; to what the user gave us
@@ -1214,8 +1207,7 @@ _no_co:         jsr l_cr
                 jsr f_wrtzerostr
                 jsr l_space
 
-                dex             ; use >NAME to print name of string 
-                dex
+                `advance        ; use >NAME to print name of string
 
                 ldy #$03        ; offset to link field
                 lda (TMPADR2),y
@@ -1243,10 +1235,8 @@ _no_co:         jsr l_cr
                 inc             ; now we have correct offset for Data Field
 
                 ; make room on stack
-                dex
-                dex
-                dex
-                dex
+                `advance
+                `advance
                 
                 ; get address of Data Field (a_xxxx)
                 clc
@@ -1300,8 +1290,7 @@ _notzero:       ; we print from the bottom up and stop when we hit X
                 stx TMPX
 
 _loop:          ; ironically, we need the stack for this  
-                dex
-                dex
+                `advance
 
                 lda 0,y 
                 sta 2,x         ; MSB first 
@@ -1438,13 +1427,12 @@ _foundchr:      ; save index of where word starts
 _nochrs:        ; Only spaces found. Return beginning of CIB 
                 ; as an address and zero as number on the stack. This 
                 ; usually means we're at the end of the line.
-                dex
-                dex
+
                 ; return head of CIB as address
                 `pushv CIBA
 
                 ; return zero as number of chars 
-                `zerotos         ; fall through to _done
+                `pushzero     ; fall through to _done
 _done: 
 z_prsnm:        rts
 .scend
@@ -2298,8 +2286,7 @@ _accumulate:    ; Starting here, we show (ud1) as (ud1l ud1h)
 
                 ; got to next character 
                 ; TODO OMG. Rewrite this with less stack-pushing
-                dex             ; "R>"
-                dex
+                `advance        ; "R>"
                 pla 
                 sta 1,x
                 pla
@@ -2444,8 +2431,7 @@ _pos:           ; should this be a double-cell number?
 
                 ; yes. Make double-cell number by creating room on the stack
                 ; for the success flag. now ( n x | d x ) on stack 
-                dex
-                dex 
+                `advance
 
 _flag:          ; set flag to success. If this is a single cell number, 
                 ; this overwrites the top part of the double number 
@@ -2574,20 +2560,10 @@ l_source:       bra a_source
                 .byte "SOURCE"
 .scope
 a_source:       ; Address of Input Buffer
-                dex             
-                dex
-                lda CIBA
-                sta 1,x         ; LSB
-                lda CIBA+1
-                sta 2,x         ; MSB
+                `pushv CIBA
 
                 ; Number of chars in Buffer
-                dex             
-                dex
-                lda CIBN        ; LSB
-                sta 1,x
-                lda CIBN+1      ; MSB
-                sta 2,x         ; should be zero in this version 
+                `pushv CIBN
 
 z_source:       rts
 .scend
@@ -3098,10 +3074,8 @@ f_postpo_int:   ; This is the internal version of POSTPONE that lets us use
                 ; the word is in the dictionary
 .scope 
                 ; make room on the stack for xt and flag 
-                dex
-                dex
-                dex
-                dex
+                `advance
+                `advance
 
                 ; The 65c02's stack contains xt LSB, xt MSB
                 pla
@@ -3351,10 +3325,8 @@ a_cmpc:         ; put xt on zero page where we can work with it better
                 ; now the address of the source is in TMPADR1, the 
                 ; destination is the Compile Pointer (CP), and the number 
                 ; of bytes is in TMPADR2
-                dex
-                dex
-                dex
-                dex
+                `advance
+                `advance
 
                 lda TMPADR1
                 sta 5,x         ; LSB of source
@@ -3547,8 +3519,7 @@ a_gtname:       ; xt is the same as the start address of the dictionary entry's
                 adc #$00        ; we only care about the carry
                 sta 2,x
 
-                dex
-                dex 
+                `advance
 
                 ; the length of the name string is stored in the second
                 ; byte 
@@ -4305,8 +4276,7 @@ l_unused:       bra a_unused
                 .word z_unused
                 .byte "UNUSED"
 
-a_unused:       dex
-                dex
+a_unused:       `advance
 
                 lda #<RamEnd
                 sec
@@ -4329,8 +4299,7 @@ l_pad:          bra a_pad
                 .word z_pad
                 .byte "PAD"
 .scope
-a_pad:          dex
-                dex
+a_pad:          `advance
 
                 lda CP
                 clc
@@ -4352,12 +4321,7 @@ l_here:         bra a_here
                 .word z_here
                 .byte "HERE"
 
-a_here:         dex
-                dex
-                lda CP          ; LSB
-                sta 1,x
-                lda CP+1        ; MSB
-                sta 2,x
+a_here:         `pushv CP
 
 z_here:         rts
 ; -----------------------------------------------------------------------------
@@ -4531,12 +4495,7 @@ l_gtin:         bra a_gtin
                 .word z_gtin
                 .byte ">IN"
 .scope
-a_gtin:         dex
-                dex
-                lda #<INP       ; INP is ">IN"
-                sta 1,x
-                lda #>INP       ; since INP is zero page, this is zero
-                sta 2,x
+a_gtin:         `pushi INP      ; INP is ">IN"
 
 z_gtin:         rts
 .scend
@@ -5160,8 +5119,7 @@ l_stod:         bra a_stod
                 .word z_stod
                 .byte "S>D"
 .scope
-a_stod:         dex
-                dex
+a_stod:         `advance
 
                 lda 4,x         ; MSB of high byte
                 bpl _pos 
@@ -5364,11 +5322,7 @@ l_invert:       bra a_invert
                 .word z_invert
                 .byte "INVERT"
 
-a_invert:       dex
-                dex
-                lda #$FF
-                sta 1,x
-                sta 2,x         ; still cotains $FF, continue with MSB
+a_invert:       `pushi $FFFF      ; still cotains $FF, continue with MSB
 
                 eor 4,x         
                 sta 4,x
@@ -5557,8 +5511,8 @@ _multi:         ; multiply
 
                 `drop           ; pretend that we swap
                 jsr l_negate
-                dex             ; move it back
-                dex
+                `advance        ; move it back
+
 _done: 
 z_fmmod:        rts
 .scend
@@ -5589,8 +5543,7 @@ a_smrem:        ; push MSB of high cell of d to stack so we can check its sign l
 
                 `drop           ; pretend we pushed n1 to R
                 jsr l_dabs      ; DABS
-                dex
-                dex
+                `advance
 
                 ; multiply
                 jsr l_ummod     ; UM/MOD 
@@ -5606,8 +5559,7 @@ a_smrem:        ; push MSB of high cell of d to stack so we can check its sign l
 
                 `drop           ; pretend we pushed quotient to R
                 jsr l_negate
-                dex
-                dex
+                `advance
 _done: 
 z_smrem:        rts
 .scend
@@ -5772,8 +5724,7 @@ a_umstar:       ; clear carry for safety
                 sta SYSPAD 
 
                 stx SYSPAD+4    ; tested later for exit from outer loop 
-                dex
-                dex
+                `advance
 
 _outerloop:     ldy #$08 
                 lsr 5,x         ; think "3,x" and later "4,x"
@@ -5824,8 +5775,7 @@ a_ssmod:        ; Instead of >R and R> to temporary push stuff on and off
                 ; doesn't see that entry
                 `drop           ; replaces >R
                 jsr l_mstar     ; M*
-                dex             ; replaces R>
-                dex
+                `advance        ; replaces R>
                 jsr l_smrem     ; SM/REM, could also be FM/MOD 
  
 z_ssmod:        rts
@@ -6106,12 +6056,7 @@ l_ploop:        bra a_ploop
 .scope
 a_ploop:        ; compile (+LOOP) -- don't call f_cmpljsr because this must 
                 ; be natively compiled
-                dex
-                dex
-                lda #<l_pploop  ; add xt of (+LOOP) to the stack
-                sta 1,x
-                lda #>l_pploop
-                sta 2,x
+                `pushi l_pploop ; add xt of (+LOOP) to the stack
                 jsr l_cmpc
 
                 ; The address we need to loop back to is TOS
@@ -6119,21 +6064,13 @@ a_ploop:        ; compile (+LOOP) -- don't call f_cmpljsr because this must
                 jsr l_comma
 
                 ; compile an UNLOOP for when we're all done
-                dex
-                dex
-                lda #<l_unloop  
-                sta 1,x
-                lda #>l_unloop
-                sta 2,x
+                `pushi l_unloop
                 jsr l_cmpc
 
                 ; complete compile of DO/?DO by replacing the six
                 ; dummy bytes by PHA instructions. The address where 
                 ; they are located is on the Data Stack
-                lda 1,x
-                sta TMPADR
-                lda 2,x
-                sta TMPADR+1
+                `savetos TMPADR
                 `drop
 
                 ; because of the way that RTS works we don't need to 
@@ -6248,8 +6185,7 @@ l_j:            bra a_j
                 .byte "J"
 
 .scope
-a_j:            dex
-                dex
+a_j:            `advance
 
                 ; get the fudged index off from the stack. it's
                 ; easier to do math on the stack directly than to pop and
@@ -6284,8 +6220,7 @@ l_i:            bra a_i
                 .word z_i
                 .byte "I"
 .scope
-a_i:            dex
-                dex
+a_i:            `advance
 
                 ; get the fudged index off of the top of the stack. it's
                 ; easier to do math on the stack directly than to pop and
@@ -6431,12 +6366,7 @@ a_do:           ; DO and ?DO share most of their code, use the FLAG2 to
 
 do_common:      ; we push HERE to the Data Stack so LOOP/+LOOP
                 ; knows where to compile the PHA instructions. 
-                dex
-                dex
-                lda CP          ; LSB
-                sta 1,x
-                lda CP+1        ; MSB
-                sta 2,x
+                `pushv CP
 
                 ; now we compile six dummy bytes that LOOP/+LOOP will
                 ; replace by the actual LDA/PHA instructions
@@ -6460,33 +6390,19 @@ do_common:      ; we push HERE to the Data Stack so LOOP/+LOOP
                 beq _do_cmpl
 
                 ; we came from ?DO, so compile (?DO) first
-                dex
-                dex
-                lda #<l_pqdo    ; add xt of (?DO) to the stack
-                sta 1,x
-                lda #>l_pqdo
-                sta 2,x
+                `pushi l_pqdo   ; add xt of (?DO) to the stack
+
                 jsr l_cmpc      ; drops through to _do_cmpl
 
                 ; compile (DO) -- don't call f_cmpljsr because this must be
                 ; natively compiled
-_do_cmpl:       dex
-                dex
-                lda #<l_pdo     ; add xt of (DO) to the stack
-                sta 1,x
-                lda #>l_pdo
-                sta 2,x
+_do_cmpl:       `pushi l_pdo    ; add xt of (DO) to the stack
                 jsr l_cmpc
 
                 ; HERE, hardcoded for speed. We put it on the Data Stack
                 ; where LOOP/+LOOP takes it from. Note this has nothing to
                 ; do with the HERE we're saving for LEAVE
-                dex             
-                dex
-                lda CP          ; LSB
-                sta 1,x
-                lda CP+1        ; MSB
-                sta 2,x
+                `pushv CP
 
 z_do:           rts
 .scend
@@ -6568,12 +6484,7 @@ l_begin:        bra a_begin
                 .byte "BEGIN"
 
 a_begin:        ; same code as HERE, for speed     
-                dex             
-                dex
-                lda CP          ; LSB
-                sta 1,x
-                lda CP+1        ; MSB
-                sta 2,x
+                `pushv CP
 
 z_begin:        rts
 ; ----------------------------------------------------------------------------
@@ -6727,8 +6638,7 @@ l_true:         bra a_true
                 .word z_true
                 .byte "TRUE"
 
-a_true:         dex
-                dex
+a_true:         `advance
                 lda #$FF
                 sta 1,x
                 sta 2,x
@@ -6901,8 +6811,7 @@ l_tuck:         bra a_tuck
                 .word z_tuck
                 .byte "TUCK"
 
-a_tuck:         dex 
-                dex
+a_tuck:         `advance
 
                 ; move m to TOS 
                 lda 3,x         ; LSB
@@ -7022,16 +6931,14 @@ l_2dup:         bra a_2dup
                 .word z_2dup
                 .byte "2DUP"
 
-a_2dup:         dex
-                dex
+a_2dup:         `advance
 
                 lda 6,x         ; MSB next on stack (NOS) 
                 sta 2,x
                 lda 5,x         ; LSB NOS
                 sta 1,x
                 
-                dex
-                dex
+                `advance
 
                 lda 6,x         ; MSB top of stack (TOS) 
                 sta 2,x
@@ -7050,8 +6957,7 @@ l_qdup:         bra a_qdup
 a_qdup:         `toszero?
                 beq _done
 
-                dex
-                dex
+                `advance
                 lda 3,x
                 sta 1,x
                 lda 4,x
@@ -7068,8 +6974,7 @@ l_dup:          bra a_dup
                 .word z_dup
                 .byte "DUP"
 
-a_dup:          dex
-                dex
+a_dup:          `advance
 
                 lda 3,x         ; LSB
                 sta 1,x
@@ -7087,10 +6992,8 @@ l_2over:        bra a_2over
                 .byte "2OVER"
 .scope
 a_2over:        ; TODO see if we have enough stuff on the stack 
-                dex
-                dex
-                dex
-                dex
+                `advance
+                `advance
 
                 lda 11,x        ; LSB of n1
                 sta 3,x
@@ -7112,8 +7015,7 @@ l_over:         bra a_over
                 .word z_over
                 .byte "OVER"
 
-a_over:         dex
-                dex
+a_over:         `advance
 
                 lda 5,x         ; LSB
                 sta 1,x
@@ -7134,8 +7036,7 @@ l_rfetch:       bra a_rfetch
                 .word z_rfetch
                 .byte "R@"
 
-a_rfetch:       dex
-                dex
+a_rfetch:       `advance
 
                 ; save the return address
                 pla             ; LSB
@@ -7172,8 +7073,7 @@ l_fromr:        bra a_fromr
                 .word z_fromr
                 .byte "R>"
 
-a_fromr:        dex
-                dex
+a_fromr:        `advance
 
                 ; save the return address
                 pla             ; LSB
@@ -7278,10 +7178,8 @@ l_tworfetch:    bra a_tworfetch
 
 .scope
 a_tworfetch:    ; make room on the stack 
-                dex
-                dex
-                dex
-                dex
+                `advance
+                `advance
 
                 ; get four bytes off of Return Stack. This assumes that 
                 ; we took a subroutine jump here so the first two entries
@@ -7313,10 +7211,8 @@ l_2rg:          bra a_2rg
                 .byte "2R>"
 .scope
 a_2rg:          ; make room on stack 
-                dex
-                dex
-                dex
-                dex
+                `advance
+                `advance
 
                 ; save the return address
                 pla             ; LSB
@@ -7585,4 +7481,4 @@ fse_defer:     .byte "DEFERed word not defined yet",0
 alphastr:       .byte "0123456789ABCDEFGHIJKLMNOPQRSTUVWYZ"
 ; =============================================================================
 ; END
-; ============================================================================= 
+; =============================================================================  
