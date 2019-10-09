@@ -76,6 +76,22 @@ _over:
 	stz TOS_MSB, x
 .macend
 
+; saves the word at NOS to the location provided.
+.macro savenos
+	lda NOS_LSB,x
+	sta _1
+	lda NOS_MSB,x
+	sta _1+1
+.macend
+
+; loads the word at location provided to NOS
+.macro loadnos
+	lda _1
+	sta NOS_LSB,x
+	lda _1+1
+	sta NOS_MSB,x
+.macend
+
 ; duplicates the value at TOS on the stack.
 dup:
         dex			; make room on the stack
@@ -134,4 +150,4 @@ swap:
         pla
         sta TOS_MSB,x
 
-        rts 
+        rts
