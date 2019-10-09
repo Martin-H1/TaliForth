@@ -121,6 +121,8 @@
 .alias  PADSIZE         $FF     ; Size of the PAD area
 .alias  TIBSIZE         $00FE   ; Size of the Terminal Input Buffer
 
+.require "stack.asm"
+
 ; =============================================================================
 ; INITILIZE SYSTEM (COLD BOOT)
 ; =============================================================================
@@ -416,9 +418,8 @@ _parseword:     ; PARSE-NAME ("text" -- addr u)
                 lda 1,x
                 beq _parseerror 
 
-                ; it's a legit number, so drop flag off stack 
-                inx
-                inx             ; now (n | d) 
+                ; it's a legit number, so drop flag off stack, now (n | d)
+                `drop
 
                 ; did we get the number in compile or interpret mode?
                 lda STATE
@@ -478,10 +479,8 @@ _found:         ; Found word, stack is now (xt f). Save the xt that was
 
 _execute:       ; We already have saved the xt and we don't care about the
                 ; flag in interpret mode, so we dump both 
-                inx             
-                inx
-                inx
-                inx
+                `drop
+                `drop
 
                 ; Only JMP has the addressing mode we need, and all our 
                 ; Forth commands end with a RTS instruction. We fake the 
@@ -522,8 +521,7 @@ _compile:       ; Compile. First, see if the Precedence bit is set. If yes,
 
                 ; Call COMPILE, and let it do the hard work. First though
                 ; drop the flag, leaving just the xt on the stack
-                inx
-                inx
+                `drop
 
                 jsr l_cmpc
 
@@ -992,8 +990,7 @@ _getline:       ; Get one line of input from the user. Keelah se'lai!
                 sta CIBN
                 stz CIBN+1      ; paranoid, always zero 
 
-                inx             ; drop return value 
-                inx
+                `drop           ; drop return value
 
                 ; Reset pointer (>IN) 
                 stz INP
@@ -1020,10 +1017,8 @@ _prtok:         ; If we're done with the line, print "ok" (lower case)
 
 _clrstack:      ; drop the address and number of characters that PARSE-NAME
                 ; always returns 
-                inx
-                inx
-                inx 
-                inx
+                `drop
+                `drop
 
                 ; Get the next line. This is an endless loop. We have to use
                 ; JMP instead of BRA because the distance is too great
@@ -1100,8 +1095,7 @@ a_dump:         ; start internal counter for 16 number per row
                 ldy #$10
 
 _loop:          ; if there are zero bytes left to display, we're done
-                lda 1,x         ; LSB
-                ora 2,x         ; MSB
+                `toszero?
                 beq _done
 
                 ; dump the contents
@@ -1125,10 +1119,8 @@ _counter:       ; loop counter
                 bne _loop
                 bra a_dump
 
-_done:          inx
-                inx
-                inx
-                inx
+_done:          `drop
+                `drop
 
 z_dump:         rts
 .scend
@@ -1148,16 +1140,13 @@ a_see:          ; get word from input
 
                 ; if we got a zero in return, no word found, so complain 
                 ; and quit
-                lda 1,x         ; LSB
-                ora 2,x         ; MSB
+                `toszero?
                 bne _toupper
 
                 ; SEE never returns anything, so we clean up by dropping
                 ; (addr n) that PARSE-NAME left us 
-                inx
-                inx
-                inx
-                inx
+                `drop
+                `drop
 
                 lda #$0a        ; Code for name not found during parsing
                 jmp error
@@ -1180,8 +1169,7 @@ _toupper:       ; convert to upper case because we know that we are looking
                 jmp error
 
 _found:         ; drop the flag we don't care about
-                inx
-                inx 
+                `drop
 
                 ; move xt to a place we can index more easily. We use 
                 ; TMPADR2 because DUMP uses TMPADR
@@ -1288,8 +1276,7 @@ _no_co:         jsr l_cr
                 jsr l_dump
 
                 ; clean up 
-                inx
-                inx
+                `drop
 
 z_see:          rts
 .scend
@@ -1342,8 +1329,7 @@ _done:          ; add a space for readability
                 jsr l_space
 
                 ; drop unused stack entry
-                inx
-                inx
+                `drop
 _finished:
 z_dots:         rts
 .scend
@@ -1419,8 +1405,7 @@ _loop:          lda (TMPADR),y
                 inc CP+1
 
 _done:          ; get rid of u because NOS is c-addr now 
-                inx 
-                inx
+                `drop
 
 z_word:         rts
 .scend
@@ -1453,12 +1438,8 @@ _foundchr:      ; save index of where word starts
                 sty INP
 
                 ; prepare stack for jump to PARSE 
-                dex
-                dex
                 lda #AscSP      ; use space as delimiter 
-                sta 1,x         
-                stz 2,x         ; paranoid, always zero 
-
+                `pusha
                 jsr l_parse 
 
                 bra _done 
@@ -1478,8 +1459,7 @@ _nochrs:        ; Only spaces found. Return beginning of CIB
                 sta 2,x
 
                 ; return zero as number of chars 
-                stz 1,x
-                stz 2,x         ; fall through to _done 
+                `zerotos         ; fall through to _done
 _done: 
 z_prsnm:        rts
 .scend
@@ -1542,10 +1522,7 @@ _eol:           ; calculate length of string found. This is the same if we
                 sbc TMPCNT+1    ; location of first char
 
                 ; save length to stack
-                dex
-                dex
-                sta 1,x
-                stz 2,x         ; always zero 
+                `pusha
 
                 ; calculate new value for >IN, depending if we are at the
                 ; end of the line or have just found the delimiter
@@ -1570,8 +1547,7 @@ l_accept:       bra a_accept
                 .byte "ACCEPT"
 .scope
 a_accept:       ; just quit if we were told to get zero bytes
-                lda 1,x         ; LSB
-                ora 2,x         ; MSB
+                `toszero?
                 beq _gotzero
 
                 .invoke load_addrn
@@ -1637,8 +1613,7 @@ _done:          ; add a final space as delimiter (paranoid)
 
                 ; return length of string found
                 tya 
-                inx 
-                inx
+                `drop
                 sta 1,x         ; LSB
                 stz 2,x         ; MSB is always zero
 
@@ -1672,10 +1647,7 @@ a_find:         ; convert antiquated counted string to normal format
                 bne +
                 inc 2,x
 *               pla
-                dex
-                dex
-                sta 1,x
-                stz 2,x
+                `pusha
 
 l_findint:      ; This is where FIND is used internally so we don't have to
                 ; convert counted strings to (addr n) strings and vice versa
@@ -1782,8 +1754,7 @@ _nomatch:       ; this is not the word we are looking for so get link to
 
                 bra _sloop
 
-_alldone:       stz 1,x         ; put fail flag ($0000) on stack
-                stz 2,x
+_alldone:       `zerotos        ; put fail flag ($0000) on stack
                 
 _finished:
 z_find:         rts
@@ -1800,8 +1771,7 @@ l_dashtrl:      bra a_dashtrl
 .scope 
 a_dashtrl:      ; if length entry is zero, return a zero and leave the 
                 ; address part untouched
-                lda 1,x         ; LSB of n
-                ora 2,x         ; MSB of n (should be zero anyway) 
+                `toszero?
                 beq _gotzero
 
                 lda 3,x         ; LSB of addr 
@@ -1846,8 +1816,7 @@ l_slstr:        bra a_slstr
                 .byte "/STRING"
 .scope
 a_slstr:        ; if n is zero, just return 
-                lda 1,x
-                ora 2,x
+                `toszero?
                 beq _done 
 
                 lda 5,x         ; LSB of addr1
@@ -1865,8 +1834,7 @@ a_slstr:        ; if n is zero, just return
                 sta 3,x         ; drop through to _done 
 
 _done:          ; drop number off stack  
-                inx
-                inx 
+                `drop
 
 z_slstr:        rts
 .scend
@@ -1896,19 +1864,14 @@ l_paren:        bra a_paren
                 .byte "("
 .scope
 a_paren:        ; use PARSE to find the ")" closing bracket
-                dex
-                dex
                 lda #$29        ; ASCII for ")" 
-                sta 1,x
-                stz 2,x         ; paranoid, always zero  
+                `pusha
 
                 jsr l_parse
 
                 ; we don't care about what parse returns  
-                inx
-                inx
-                inx
-                inx 
+                `drop
+                `drop
 
 z_paren:        rts
 .scend
@@ -1924,17 +1887,13 @@ l_dotpar:       bra a_dotpar
                 .byte ".("
 .scope
 a_dotpar:       ; use PARSE to find the end of the string 
-                dex
-                dex
                 lda #$29        ; ASCII for ")" 
-                sta 1,x         
-                stz 2,x         ; paranoid, always zero  
+                `pusha
 
                 jsr l_parse     ; returns (addr u) 
 
                 ; if we were given a zero for length, just return  
-                lda 1,x
-                ora 2,x
+                `toszero?
                 beq _done 
 
                 ; otherwise, just TYPE to print the string 
@@ -1955,23 +1914,17 @@ l_squote:       bra a_squote
                 .byte "S", $22     ; results in S"
 .scope
 a_squote:       ; use PARSE to find the end of the string 
-                dex
-                dex
                 lda #$22        ; ASCII for " 
-                sta 1,x         
-                stz 2,x
+                `pusha
 
                 jsr l_parse     ; returns (addr u) 
 
                 ; if we were given a zero for length, just return  
-                lda 1,x
-                ora 2,x
+                `toszero?
                 bne +
 
-                inx             ; drop garbage from PARSE
-                inx
-                inx
-                inx
+                `drop           ; drop garbage from PARSE
+                `drop
                 
                 bra _done 
                 
@@ -2208,10 +2161,8 @@ a_atxy:         lda #AscESC
                 lda #'H         ; for Mac OS X 
                 jsr f_putchr
 
-                inx             ; 2DROP
-                inx
-                inx
-                inx
+                `drop           ; 2DROP
+                `drop
 
 z_atxy:         rts
 .scend
@@ -2238,8 +2189,7 @@ a_spaces:       ; don't even start if we got a zero
 *               dec 1,x
                 bra a_spaces
 
-_done:          inx
-                inx
+_done:          `drop
                 
 z_spaces:       rts
 .scend
@@ -2281,11 +2231,8 @@ l_bl:           bra a_bl
                 .word z_bl
                 .byte "BL"
 
-a_bl:           dex
-                dex
-                lda #AscSp
-                sta 1,x         ; LSB
-                stz 2,x         ; paranoid, always zero 
+a_bl:           lda #AscSp
+                `pusha
 
 z_bl:           rts
 ; ----------------------------------------------------------------------------
@@ -2308,8 +2255,7 @@ a_gtnum:        ; TODO check to see if we have enough stuff on the stack
                 beq _quit       ; stop right now if we got a zero 
 
                 sta TMPCNT
-                inx
-                inx             ; now (ud1 addr1) 
+                `drop           ; now (ud1 addr1)
 
 _loop:          ; feed each character through DIGIT>NUMBER. 
 
@@ -2318,17 +2264,11 @@ _loop:          ; feed each character through DIGIT>NUMBER.
 
                 ; first, get a character ("C@") 
                 lda (1,x)       ; get first character
-                dex
-                dex
-                sta 1,x         
-                stz 2,x         ; paranoid, always zero; now (ud1 addr1 char)  
+                `pusha          ; now (ud1 addr1 char)
 
                 ; next, get the base ("BASE @") 
-                dex
-                dex
                 lda BASE
-                sta 1,x
-                stz 2,x         ; paranoid, always zero; now (ud1 addr1 char base)
+                `pusha          ; now (ud1 addr1 char base)
 
                 ; convert single digit through DIGIT>NUMBER
                 jsr l_digit     ; now (ud1 addr1 n true) or ( ... char false)
@@ -2337,8 +2277,7 @@ _loop:          ; feed each character through DIGIT>NUMBER.
 
                 ; DIGIT>NUMBER returned a false flag, so return what 
                 ; we have got so far
-                inx
-                inx             ; drop flag, now (ud addr char)
+                `drop           ; drop flag, now (ud addr char)
                 lda TMPCNT      ; number of characters we haven't converted
                 sta 1,x
                 stz 2,x         ; always zero; now (ud2 addr2 n2)
@@ -2351,8 +2290,7 @@ _accumulate:    ; Starting here, we show (ud1) as (ud1l ud1h)
                 ; the pForth code with minor translations to assembler. 
                 ; We need to figure out the basic math involved and rewrite
                 ; it in assembler for speed. 
-                inx             ; drop the flag 
-                inx             ; now (ud1l ud1h addr1 n) 
+                `drop           ; drop the flag now (ud1l ud1h addr1 n)
 
                 jsr l_swap      ; now (ud1l ud1h n addr1) 
 
@@ -2360,31 +2298,23 @@ _accumulate:    ; Starting here, we show (ud1) as (ud1l ud1h)
                 pha
                 lda 1,x
                 pha             
-                inx
-                inx             ; now (ud1l ud1h n) (R: addr1)
+                `drop           ; now (ud1l ud1h n) (R: addr1)
 
                 jsr l_swap      ; now (ud1l n ud1h) (R: addr1)
 
                 ; fetch base radix ("BASE @") 
-                dex
-                dex 
                 lda BASE
-                sta 1,x
-                stz 2,x         ; always zero; now (ud1l n ud1h base) 
+                `pusha          ; now (ud1l n ud1h base) 
 
                 jsr l_umstar    ; "UM*", now (ud1l n h*b-l h*b-h) 
 
-                inx             ; "DROP" 
-                inx             ; now (ud1l n h*b-l)
+                `drop           ; "DROP" now (ud1l n h*b-l)
 
                 jsr l_rot       ; "ROT", now (n h*b-l ud1l)
 
                 ; fetch base radix ("BASE @") 
-                dex
-                dex             
                 lda BASE
-                sta 1,x
-                stz 2,x         ; always zero; now (n h*b-l ud1l base)
+                `pusha          ; now (n h*b-l ud1l base)
 
                 jsr l_umstar    ; "UM*", now (n h*b-l l*b-l l*b-h) 
 
@@ -2410,11 +2340,8 @@ _accumulate:    ; Starting here, we show (ud1) as (ud1l ud1h)
 
 _quit:          ; put counter on the top of the stack. pForth did this with
                 ; R, we used TMPCNT
-                dex
-                dex 
                 lda TMPCNT
-                sta 1,x
-                stz 2,x         ; always zero; now (ud2l ud2h addr1+n u2) 
+                `pusha          ; now (ud2l ud2h addr1+n u2)
 
 z_gtnum:        rts
 .scend
@@ -2429,8 +2356,7 @@ l_number:       bra a_number
                 .byte "NUMBER"
 .scope
 a_number:       ; make sure u is not zero 
-                lda 1,x
-                ora 2,x
+                `toszero?
                 bne + 
 
                 ; since we were given a zero, and that is the FALSE flag, 
@@ -2467,15 +2393,8 @@ a_number:       ; make sure u is not zero
 
 
 _stack:         ; Prepare stack for >NUMBER
-                dex
-                dex
-                dex
-                dex             ; now (addr u x x)
-
-                stz 1,x
-                stz 2,x
-                stz 3,x
-                stz 4,x         ; now (addr u 0 0) 
+                `pushzero       ; now (addr u x x)
+                `pushzero       ; now (addr u 0 0)
 
                 jsr l_2swap     ; now (0 0 addr u) 
 
@@ -2511,10 +2430,8 @@ _stack:         ; Prepare stack for >NUMBER
 
 _done:          ; all chars have been converted, so drop the flag and 
                 ; return either a double- or single-cell value 
-                inx
-                inx             ; now (ud addr) on the stack 
-                inx
-                inx             ; now (ud) on the stack 
+                `drop           ; now (ud addr) on the stack
+                `drop           ; now (ud) on the stack
 
                 ; handle sign 
                 lda FLAG2
@@ -2574,10 +2491,8 @@ _fail:          ; not all characters were converted, and it's not a
                 stz 5,x
                 stz 6,x         ; now (addr 0 addr u) on stack
 
-                inx             ; drop top two entries 
-                inx
-                inx
-                inx             ; drop through to _quit
+                `drop           ; drop top two entries
+                `drop           ; drop through to _quit
 _quit:          
 z_number:       rts
 .scend
@@ -2620,8 +2535,7 @@ _checkbase:     ; make sure our number is inside the base range
                 bcc _success 
 
 _notdigit:      ; assumes char still in NOS 
-                stz 1,x
-                stz 2,x 
+                `zerotos
                
                 bra _done       ; don't use RTS here because of compile 
 
@@ -2727,10 +2641,8 @@ a_plstore:      ; Move address to TMPADR so we can work with it
                 adc 4,x
                 sta (TMPADR),y
 
-_done:          inx             ; 2DROP
-                inx
-                inx
-                inx
+_done:          `drop           ; 2DROP
+                `drop
                 
 z_plstore:      rts
 .scend
@@ -2821,11 +2733,8 @@ a_2var:         ; We let CREATE and ALLOT do the heavy lifting, because both
                 ; two following bytes to zero
                 jsr l_create
 
-                dex             ; Push 2 on stack
-                dex
                 lda #$04        ; two cells are four bytes
-                sta 1,x         ; LSB
-                stz 2,x         ; MSB paranoid, always zero 
+                `pusha
 
                 jsr l_allot 
 
@@ -2846,11 +2755,8 @@ a_var:          ; We let CREATE and ALLOT do the heavy lifting, because both
                 ; two following bytes to zero
                 jsr l_create
 
-                dex             ; Push 2 on stack
-                dex
                 lda #$02        ; one cell is two bytes
-                sta 1,x         ; LSB
-                stz 2,x         ; MSB paranoid, always zero 
+                `pusha
 
                 jsr l_allot 
 
@@ -2962,16 +2868,13 @@ a_create:       ; see if we were given a name. Ideally, this returns
                 jsr l_prsnm
 
                 ; if we got a zero in return, no word found, complain and quit
-                lda 1,x         ; LSB
-                ora 2,x         ; MSB
+                `toszero?
                 bne +
 
                 ; Clean up the stack before we return; drops ( addr u ) from
                 ; PARSE-NAME 
-                inx
-                inx
-                inx
-                inx
+                `drop
+                `drop
 
                 lda #$0a        ; Code for name not found during parsing
                 jmp error 
@@ -3076,11 +2979,8 @@ _loop:          ; copy name string to dictionary entry
 
                 ; Reserve three more bytes for the hardcoded subroutine
                 ; call
-                dex
-                dex
                 lda #$03
-                sta 1,x         ; LSB
-                stz 2,x         ; MSB, always zero
+                `pusha
 
                 jsr l_allot
 
@@ -3105,8 +3005,7 @@ _loop:          ; copy name string to dictionary entry
                 sta DP+1
 
                 ; get rid of the address left on stack
-                inx             
-                inx
+                `drop
 
 z_create:       rts
 .scend
@@ -3185,14 +3084,11 @@ a_postpo:       ; PARSE-NAME and FIND get us xt and the mode flag
                 jsr l_prsnm
 
                 ; if we got a zero, no word was provided, and we complain 
-                lda 1,x
-                ora 2,x
+                `toszero?
                 bne _findit
 
-                inx             ; dump the (addr n) that we got back anyway
-                inx
-                inx
-                inx
+                `drop           ; dump the (addr n) that we got back anyway
+                `drop
 
                 lda #$0a        ; string code for name not found
                 jmp error
@@ -3272,8 +3168,7 @@ pp_found:       ; we start here with (xt f) on the stack, where f will be
                 ; $0001 for immediate words and -1 ($FFFF) otherwise
                 lda 2,x         ; we use bit 7 of MSB for testing 
                 pha             ; wait with the test so we can clear stack
-                inx             ; dump flag, leaving xt on TOS
-                inx     
+                `drop           ; dump flag, leaving xt on TOS
                 pla 
                 bpl _immediate
                 
@@ -3504,12 +3399,8 @@ a_cmpc:         ; put xt on zero page where we can work with it better
                 jsr l_cmovegt 
         
                 ; now we have to allot the bytes we used 
-                dex
-                dex
-
                 pla             ; retrieve the length of the fragment 
-                sta 1,x
-                stz 2,x         ; paranoid, always zero 
+                `pusha
                 jsr l_allot 
         
                 bra _done
@@ -3535,8 +3426,7 @@ _dojump:        ; Compile as JSR command. Add the JSR opcode ($20). We
                 bcc + 
                 inc CP+1 
 
-*               inx             ; drop xt 
-                inx
+*               `drop           ; drop xt
 _done: 
 z_cmpc:         rts
 .scend
@@ -3551,11 +3441,8 @@ l_state:        bra a_state
                 .word z_state
                 .byte "STATE"
 .scope
-a_state:        dex
-                dex
-                lda #STATE
-                sta 1,x
-                stz 2,x         ; paranoid, always zero 
+a_state:        lda #STATE
+                `pusha
                 
 z_state:        rts
 .scend
@@ -3570,14 +3457,11 @@ l_eval:         bra a_eval
                 .byte "EVALUATE"
 .scope
 a_eval:         ; if u is zero, abort 
-                lda 1,x 
-                ora 2,x
+                `toszero?
                 bne +
 
-                inx             ; clear stack and return 
-                inx
-                inx
-                inx
+                `drop           ; clear stack and return
+                `drop
 
                 rts
 
@@ -3634,8 +3518,7 @@ a_exe:          lda 1,x         ; LSB
                 lda 2,x         ; MSB
                 sta IP+1
 
-                inx             ; DROP xt 
-                inx
+                `drop           ; DROP xt
 
                 ; Only JMP has the addressing mode we need, and all the 
                 ; Forth commands end with a RTS instruction. We fake the 
@@ -3771,15 +3654,12 @@ l_tick:         bra a_tick
 a_tick:         jsr l_prsnm
 
                 ; if we got a zero, no word was found, and we complain 
-                lda 1,x
-                ora 2,x
+                `toszero?
                 bne _gotword
 
                 ; dump the (addr n) that we got back anyway
-                inx             
-                inx
-                inx
-                inx
+                `drop
+                `drop
 
                 lda #$0A        ; string code for name not found
                 jmp error 
@@ -3801,8 +3681,7 @@ _gotword:       ; see if the word the stack points to is in the dictionary,
 _found:         ; we don't care if word is immediate or whatever, just 
                 ; drop the flag, leaving the xt. This is why we can't
                 ; use TICK as a part of QUIT. 
-                inx
-                inx
+                `drop
 
 z_tick:         rts
 .scend
@@ -3890,8 +3769,7 @@ a_comma:        lda 1,x         ; LSB
                 bne _done
                 inc CP+1
 
-_done:          inx
-                inx
+_done:          `drop
 
 z_comma:        rts
 .scend
@@ -3908,8 +3786,7 @@ l_allot:        bra a_allot
                 .byte "ALLOT"
 .scope
 a_allot:        ; if we got a zero, forget the whole thing 
-                lda 1,x         ; LSB
-                ora 2,x         ; MSB
+                `toszero?
                 beq _done
 
                 ; if we have a positive value, reserve space
@@ -3966,8 +3843,7 @@ _neg:           ; if we have a negative value, release space
                 lda #>CP0
                 sta CP+1        ; drops through to done
 
-_done:          inx
-                inx
+_done:          `drop
 
 z_allot:        rts
 .scend
@@ -4008,8 +3884,7 @@ l_move:         bra a_move
                 .byte "MOVE"
 .scope
 a_move:         ; abort if number of bytes to move is zero 
-                lda 1,x
-                ora 2,x
+                `toszero?
                 beq _equal
 
                 ; compare MSB first
@@ -4050,8 +3925,7 @@ l_cmovegt:      bra a_cmovegt
                 .byte "CMOVE>"
 .scope 
 a_cmovegt:      ; abort if number of bytes to move is zero  
-                lda 1,x
-                ora 2,x
+                `toszero?
                 beq _abort 
 
 cmovegint:      ; move addresses to where we can work with them 
@@ -4129,8 +4003,7 @@ l_cmove:        bra a_cmove
                 .byte "CMOVE"
 .scope 
 a_cmove:        ; abort if number of bytes to move is zero 
-                lda 1,x
-                ora 2,x
+                `toszero?
                 beq _abort 
 
 cmoveint:       ; move addresses to where we can work with them 
@@ -4211,10 +4084,8 @@ l_cstore:       bra a_cstore
 
 a_cstore:       lda 3,x
                 sta (1,x)
-                inx
-                inx
-                inx
-                inx
+                `drop
+                `drop
 
 z_cstore:       rts
 ; -----------------------------------------------------------------------------
@@ -4236,8 +4107,7 @@ a_ccom:         lda 1,x         ; we ignore the MSB completely
 
                 ; TODO make sure haven't allocated more than we have
 
-*               inx
-                inx
+*               `drop
 
 z_ccom:         rts
 .scend
@@ -4326,8 +4196,7 @@ a_fill:         ; TODO check if we have enough stuff on the stack
                 lda 1,x
                 pha 
 
-                inx             ; drop char, we now have (addr u) 
-                inx 
+                `drop           ; drop char, we now have (addr u)
 
                 ; put stack values in zero page
                 .invoke load_addrn
@@ -4369,10 +4238,7 @@ l_erase:        bra a_erase
                 .byte "ERASE"
 
 .scope
-a_erase:        dex
-                dex
-                stz 1,x
-                stz 2,x
+a_erase:        `pushzero
 
                 jsr l_fill      ; don't combine JSR/RTS so we can compile 
 
@@ -4422,8 +4288,7 @@ a_marker:       ; This is a defining word
                 sta TMPADR
                 lda 2,x
                 sta TMPADR+1
-                inx
-                inx
+                `drop
 
                 ; the link to the previous DP is three bytes down
                 ldy #$03
@@ -4529,11 +4394,8 @@ l_base:         bra a_base
                 .word z_base
                 .byte "BASE"
 
-a_base:         dex
-                dex
-                lda #BASE       ; LSB
-                sta 1,x
-                stz 2,x         ; MSB, always zero 
+a_base:         lda #BASE       ; LSB
+                `pusha
 
 z_base:         rts
 ; -----------------------------------------------------------------------------
@@ -4547,11 +4409,7 @@ l_key:          bra a_key
                 .byte "KEY"
 
 a_key:          jsr f_getchr    ; returns key found in A
-
-                dex
-                dex
-                sta 1,x         ; LSB
-                stz 2,x         ; MSB, always zero 
+                `pusha
 
 z_key:          rts
 ; ----------------------------------------------------------------------------
@@ -4584,15 +4442,13 @@ a_bchar:        ; get the next character in the stream
                 jsr l_prsnm 
 
                 ; if we got back a zero, we have a problem 
-                lda 1,x
-                ora 2,x
+                `toszero?
                 bne + 
 
                 lda #$0a        ; Code for name not found during parsing
                 jmp error 
 
-*               inx             ; drop number of characters, leaving address
-                inx 
+*               `drop           ; drop number of characters, leaving address
 
                 lda (1,x)       ; get characters 
                 sta 1,x
@@ -4615,15 +4471,13 @@ a_char:         ; get the next character, returns ( addr u )
                 jsr l_prsnm
 
                 ; if we got back a zero, we have a problem 
-                lda 1,x
-                ora 2,x
+                `toszero?
                 bne + 
 
                 lda #$0a        ; Code for name not found during parsing
                 jmp error 
 
-*               inx             ; drop number of characters, leave addr 
-                inx
+*               `drop           ; drop number of characters, leave addr
 
                 lda (1,x)       ; get character (equivalent to C@) 
 
@@ -4647,8 +4501,7 @@ l_emit:         bra a_emit
 a_emit:         lda 1,x         ; get LSB from stack 
                 jsr f_putchr    
 
-                inx
-                inx
+                `drop
 
 z_emit:         rts
 .scend
@@ -4662,8 +4515,7 @@ l_type:         bra a_type
                 .word z_type
                 .byte "TYPE"
 .scope
-a_type:         lda 1,x         ; Skip if we got a zero
-                ora 2,x
+a_type:         `toszero?
                 beq _done
 
                 ; get address 
@@ -4688,10 +4540,8 @@ a_type:         lda 1,x         ; Skip if we got a zero
                 bne -
 
 _done:          ; clear stack 
-                inx
-                inx
-                inx
-                inx
+                `drop
+                `drop
 
 z_type:         rts
 .scend
@@ -4734,10 +4584,7 @@ a_count:        lda (1,x)       ; Get number of characters (256 max)
 
                 ; save number of characters to stack 
 *               pla
-                dex
-                dex
-                sta 1,x         ; LSB
-                stz 2,x         ; MSB, always zero
+                `pusha
 
 z_count:        rts
 .scend
@@ -4774,8 +4621,7 @@ l_0equ:         bra a_0equ
                 .word z_0equ
                 .byte "0="
 .scope
-a_0equ:         lda 1,x        ; LSB 
-                ora 2,x        ; MSB
+a_0equ:         `toszero?
                 beq +
                 
                 ; TOS is not $0000, so store zero on stack 
@@ -4813,8 +4659,7 @@ _false:         lda #$00        ; drop through to _done
 
 _done:          sta 3,x
                 sta 4,x
-                inx
-                inx
+                `drop
 
 z_grthan:       rts
 .scend
@@ -4842,8 +4687,7 @@ _false:         lda #$00        ; drop through to _done
 
 _done:          sta 3,x
                 sta 4,x
-                inx
-                inx 
+                `drop
 
 z_equal:        rts
 .scend
@@ -4869,8 +4713,7 @@ _false:         lda #$00        ; drop through to _done
 
 _done:          sta 3,x
                 sta 4,x
-                inx
-                inx
+                `drop
 
 z_lessthan:     rts
 .scend
@@ -4883,10 +4726,7 @@ l_zero:         bra a_zero
                 .word z_zero
                 .byte "0"
 
-a_zero:         dex
-                dex
-                stz 1,x
-                stz 2,x
+a_zero:         `pushzero
 
 z_zero:         rts
 ; -----------------------------------------------------------------------------
@@ -4899,12 +4739,8 @@ l_one:          bra a_one
                 .byte "1"
 
 .scope
-a_one:          dex
-                dex
-                lda #$01
-                sta 1,x         ; LSB
-                stz 2,x         ; MSB
-
+a_one:          lda #$01
+                `pusha
 z_one:          rts
 .scend
 ; -----------------------------------------------------------------------------
@@ -4916,12 +4752,8 @@ l_two:          bra a_two
                 .word z_two
                 .byte "2"
 
-a_two:          dex
-                dex
-                lda #$02
-                sta 1,x         ; LSB
-                stz 2,x         ; MSB, always zero 
-
+a_two:          lda #$02
+                `pusha
 z_two:          rts
 ; ----------------------------------------------------------------------------
 ; DDOTR ( d n -- ) ("D.R") 
@@ -5073,10 +4905,7 @@ l_udot:         bra a_udot
                 .byte "U."
 .scope
 a_udot:         ; Forth string is 0 UD.
-                dex
-                dex
-                stz 1,x
-                stz 2,x
+                `pushzero
 
                 jsr l_uddot     ; UD.
 
@@ -5116,8 +4945,7 @@ a_numgt:        ; We overwrite the values for the double cell number,
                 sbc 4,x
                 sta 4,x
 
-                inx
-                inx 
+                `drop
 
 z_numgt:        rts
 .scend
@@ -5135,8 +4963,7 @@ l_sign:         bra a_sign
 a_sign:         lda 2,x         ; check MSB of TOS
                 bmi _minus
 
-                inx             ; get rid of number
-                inx 
+                `drop           ; get rid of number
 
                 bra _done 
                 
@@ -5180,8 +5007,7 @@ a_hold:         ; This is actually pretty sneaky code: The new string is
                 sta (OUTP)
 
                 ; dump char off stack 
-                inx
-                inx
+                `drop
 
 z_hold:         rts
 .scend
@@ -5200,8 +5026,7 @@ a_nums:
 _loop:          jsr l_num       ; convert a single number ("#"')
 
                 ; stop when the double-cell number on top of stack is zero
-                lda 1,x
-                ora 2,x
+                `toszero?
                 ora 3,x
                 ora 4,x
                 bne _loop
@@ -5264,8 +5089,7 @@ a_ltnum:        jsr l_pad       ; now ( pad ) on stack
                 lda 2,x         ; MSB of PAD 
                 sta OUTP+1
 
-                inx
-                inx 
+                `drop
 
 z_ltnum:        rts
 .scend
@@ -5298,10 +5122,8 @@ a_dminus:       ; TODO see if we have enough words on the stack
                 sbc 2,x
                 sta 6,x
 
-                inx
-                inx
-                inx
-                inx
+                `drop
+                `drop
 
 z_dminus:       rts
 .scend
@@ -5334,10 +5156,8 @@ a_dplus:        ; TODO see if we have enough words on the stack
                 adc 6,x
                 sta 6,x
 
-                inx
-                inx
-                inx
-                inx
+                `drop
+                `drop
 
 z_dplus:        rts
 .scend
@@ -5351,8 +5171,7 @@ l_dtos:         bra a_dtos
                 .word z_dtos
                 .byte "D>S"
 .scope
-a_dtos:         inx
-                inx
+a_dtos:         `drop
 
 z_dtos:         rts
 .scend
@@ -5376,8 +5195,7 @@ a_stod:         dex
                 sta 2,x
                 bra _done
 
-_pos:           stz 1,x         ; nope, we're positive
-                stz 2,x         ; falls through to done 
+_pos:           `zerotos        ; nope, we're positive, fall through to done
 _done: 
 z_stod:         rts
 .scend
@@ -5403,8 +5221,7 @@ a_rshift:       ; max 16 bit shift, so we mask everything else. We completely
                 dey
                 bne - 
 
-_done:          inx
-                inx
+_done:          `drop
 
 z_rshift:       rts
 .scend
@@ -5430,8 +5247,7 @@ a_lshift:       ; max 16 bit shift, so we mask everything else. We completely
                 dey
                 bne - 
 
-_done:          inx
-                inx
+_done:          `drop
 
 z_lshift:       rts
 .scend
@@ -5468,8 +5284,7 @@ _noov:          ; if negative, NOS is larger and needs to be dumped
                 lda 2,x         ; MSB
                 sta 4,x
 
-_keepnos:       inx
-                inx 
+_keepnos:       `drop
 
 z_min:          rts
 .scend
@@ -5506,8 +5321,7 @@ _noov:          ; if negative, NOS is larger and needs to be kept
                 lda 2,x
                 sta 4,x
 
-_keepnos:       inx 
-                inx
+_keepnos:       `drop
                 
 z_max:          rts
 .scend
@@ -5587,8 +5401,7 @@ a_invert:       dex
                 eor 3,x
                 sta 3,x
 
-                inx
-                inx
+                `drop
 
 z_invert:       rts
 .scend 
@@ -5608,8 +5421,7 @@ a_xor:          lda 1,x         ; LSB
                 eor 4,x         
                 sta 4,x
 
-                inx
-                inx
+                `drop
 
 z_xor:          rts
 ; -----------------------------------------------------------------------------
@@ -5628,8 +5440,7 @@ a_or:           lda 1,x         ; LSB
                 ora 4,x         
                 sta 4,x
 
-                inx
-                inx
+                `drop
 
 z_or:           rts
 ; -----------------------------------------------------------------------------
@@ -5648,8 +5459,7 @@ a_and:          lda 1,x         ; LSB
                 and 4,x
                 sta 4,x
 
-                inx
-                inx
+                `drop
 
 z_and:          rts
 .scend
@@ -5683,8 +5493,7 @@ a_mplus:        clc
                 adc #$00        ; again, only interested in the carry
                 sta 4,x
 
-_done:          inx
-                inx
+_done:          `drop
 
 z_mplus:        rts
 .scend
@@ -5722,8 +5531,7 @@ l_mod:          bra a_mod
                 .byte "MOD"
 .scope
 a_mod:          jsr l_slashmod  ; Returns ( remain quotient )
-                inx             ; drop the quotient 
-                inx 
+                `drop           ; drop the quotient
 
 z_mod:          rts
 .scend
@@ -5771,8 +5579,7 @@ _multi:         ; multiply
                 lda FLAG
                 beq _done
 
-                inx             ; pretend that we swap
-                inx
+                `drop           ; pretend that we swap
                 jsr l_negate
                 dex             ; move it back
                 dex
@@ -5804,8 +5611,7 @@ a_smrem:        ; push MSB of high cell of d to stack so we can check its sign l
                 ; prepare division by getting absolute of n1 and d
                 jsr l_abs       ; ABS
 
-                inx             ; pretend we pushed n1 to R
-                inx
+                `drop           ; pretend we pushed n1 to R
                 jsr l_dabs      ; DABS
                 dex
                 dex
@@ -5822,8 +5628,7 @@ a_smrem:        ; push MSB of high cell of d to stack so we can check its sign l
                 pla
                 bpl _done
 
-                inx             ; pretend we pushed quotient to R
-                inx
+                `drop           ; pretend we pushed quotient to R
                 jsr l_negate
                 dex
                 dex
@@ -5871,8 +5676,7 @@ a_ummod:        ; TODO see if we have enough stuff on the stack
 
                 ; prevent division by zero. We currently do not check for 
                 ; overflow 
-                lda 1,x
-                ora 2,x
+                `toszero?
                 bne _notzero
 
                 lda #$09        ; "Division by zero" string 
@@ -5918,8 +5722,7 @@ _loop:          ; rotate low cell of dividend one bit left (LSB)
                 bra _loop
 
 _done:          ; drop on from the data stack, swap quotient and remainder 
-                inx
-                inx
+                `drop
                 jsr l_swap
 
 z_ummod:        rts
@@ -6043,8 +5846,7 @@ l_ssmod:        bra a_ssmod
 a_ssmod:        ; Instead of >R and R> to temporary push stuff on and off 
                 ; the stack, we just lower the stack pointer so that M* 
                 ; doesn't see that entry
-                inx             ; replaces >R
-                inx 
+                `drop           ; replaces >R
                 jsr l_mstar     ; M*
                 dex             ; replaces R>
                 dex
@@ -6066,8 +5868,7 @@ l_starslash:    bra a_starslash
 .scope
 a_starslash:    jsr l_ssmod     ; */MOD
                 jsr l_swap      ; SWAP 
-                inx             ; DROP 
-                inx     
+                `drop           ; DROP
 
 z_starslash:    rts
 .scend
@@ -6090,8 +5891,7 @@ a_slash:        ; we can't replace >R by INX INX and R> by DEX DEX because
                 jsr l_fromr     ; R>
                 jsr l_smrem     ; SM/REM 
                 jsr l_swap      ; SWAP
-                inx             ; DROP 
-                inx 
+                `drop
 
 z_slash:        rts
 .scend
@@ -6106,8 +5906,7 @@ l_star:         bra a_star
                 .byte "*"
 
 a_star:         jsr l_umstar
-                inx
-                inx
+                `drop
 
 z_star:         rts
 ; -----------------------------------------------------------------------------
@@ -6127,8 +5926,7 @@ a_minus:        sec
                 sbc 2,x
                 sta 4,x
 
-                inx
-                inx
+                `drop
 
 z_minus:        rts
 ; -----------------------------------------------------------------------------
@@ -6149,8 +5947,7 @@ a_plus:         clc
                 adc 4,x
                 sta 4,x
 
-                inx
-                inx
+                `drop
 
 z_plus:         rts
 ; ----------------------------------------------------------------------------
@@ -6302,8 +6099,7 @@ a_pploop:       clc
                 tya             ; put LSB of index back on stack
                 pha
 
-                inx             ; dump step from TOS 
-                inx
+                `drop           ; dump step from TOS
 
                 ; if V flag is set, we're done looping and continue
                 ; after the +LOOP instruction
@@ -6362,8 +6158,7 @@ a_ploop:        ; compile (+LOOP) -- don't call f_cmpljsr because this must
                 sta TMPADR
                 lda 2,x
                 sta TMPADR+1
-                inx
-                inx
+                `drop
 
                 ; because of the way that RTS works we don't need to 
                 ; save CP, but CP-1
@@ -6572,8 +6367,7 @@ a_pqdo:         ; see if TOS and NOS are equal
                 pla
                 rts
 
-_do_do:         inx             ; clear flag from EQUAL off stack
-                inx             ; this merges into (DO) 
+_do_do:         `drop           ; drop flag from EQUAL, this merges into (DO)
 z_pqdo:         nop             ; dummy: never reached, not compiled
 .scend
 ; ----------------------------------------------------------------------------
@@ -6619,10 +6413,8 @@ a_pdo:          ; first step: create fudge factor (FUFA) by subtracting the limi
 
                 ; we've saved the FUFA on the NOS of the R stack, so we can
                 ; use it later. Clean the Data Stack
-                inx
-                inx
-                inx
-                inx
+                `drop
+                `drop
 
 z_pdo:          rts
 .scend
@@ -6747,8 +6539,7 @@ a_then:         ; Put differently, this routine has us store the CP at
                 lda CP+1
                 sta (TMPADR),y
 
-                inx
-                inx
+                `drop
  
 z_then:         rts
 .scend
@@ -6785,8 +6576,7 @@ a_again:        ; Add the JMP absolute command ($4C). We use Y as an index
                 bcc +
                 inc CP+1
 
-*               inx             ; drop the address
-                inx
+*               `drop           ; drop the address
 
 z_again:        rts
 .scend
@@ -6830,8 +6620,7 @@ a_p0branch:     ; we use the return value on the 65c02 stack to determine
 
                 ; see if flag is zero, which is the whole purpose of the
                 ; operation after all 
-                inx
-                inx 
+                `drop
                 lda $FF,x       ; LSB of flag 
                 ora 0,x         ; MSB
                 beq _zero       ; flag is FALSE (zero), so branch 
@@ -6978,10 +6767,7 @@ l_false:        bra a_false
                 .word z_false
                 .byte "FALSE"
 
-a_false:        dex
-                dex
-                stz 1,x
-                stz 2,x
+a_false:        `pushzero
 
 z_false:        rts
 ; -----------------------------------------------------------------------------
@@ -7038,10 +6824,7 @@ a_depth:        ; We've got zero entries when X is $7F
                 lsr 
 
                 ; push result to stack 
-                dex
-                dex
-                sta 1,x
-                stz 2,x         ; always zero 
+                `pusha
 
 z_depth:        rts
 ; ----------------------------------------------------------------------------
@@ -7178,8 +6961,7 @@ a_nip:          lda 1,x         ; LSB
                 lda 2,x         ; MSB
                 sta 4,x
 
-                inx
-                inx
+                `drop
 
 z_nip:          rts
 ; ----------------------------------------------------------------------------
@@ -7289,8 +7071,7 @@ l_qdup:         bra a_qdup
                 .word z_qdup
                 .byte "?DUP"
 .scope
-a_qdup:         lda 1,x
-                ora 2,x
+a_qdup:         `toszero?
                 beq _done
 
                 dex
@@ -7467,8 +7248,7 @@ a_tor:          ; save the return address
                 lda TMPADR     ; LSB
                 pha 
 
-                inx
-                inx
+                `drop
 
 z_tor:          rts
 .scend
@@ -7505,10 +7285,8 @@ a_2gr:          ; save the return address
                 lda TMPADR     ; LSB
                 pha 
 
-                inx
-                inx
-                inx
-                inx
+                `drop
+                `drop
 
 z_2gr:          rts
 .scend
@@ -7648,10 +7426,8 @@ a_store:        lda 3,x        ; LSB
 *               lda 4,x        ; MSB
                 sta (1,x)
 
-                inx             ; 2DROP
-                inx
-                inx
-                inx
+                `drop
+                `drop
                
 z_store:        rts
 .scend
@@ -7663,10 +7439,8 @@ l_2drop:        bra a_2drop
                 .word z_2drop
                 .byte "2DROP"
 
-a_2drop:        inx
-                inx
-                inx
-                inx 
+a_2drop:        `drop
+                `drop
 
 z_2drop:        rts
 ; -----------------------------------------------------------------------------
@@ -7678,8 +7452,7 @@ l_drop:         bra a_drop
                 .word z_drop
                 .byte "DROP"
 
-a_drop:         inx
-                inx
+a_drop:         `drop
 
 z_drop:         rts             
 ; -----------------------------------------------------------------------------
