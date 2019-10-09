@@ -15,39 +15,10 @@
 _over:
 .macend
 
-; pushes the immediate literal provided as the argument
-.macro pushi
-        dex			; make room on the argument stack
+; make room on the argument stack.
+.macro advance
+        dex
 	dex
-        lda #<_1		; LSB
-        sta TOS_LSB,x
-        lda #>_1		; MSB
-        sta TOS_MSB,x
-.macend
-
-; pushes the value in the accumulator onto stack and zero extends it.
-.macro pusha
-        dex			; make room on the argument stack
-	dex
-        sta TOS_LSB,x
-        stz TOS_MSB,x
-.macend
-
-; pushes the value at the address specified at the argument.
-.macro pushv
-        dex			; make room on the argument stack
-	dex
-        lda _1			; LSB
-        sta TOS_LSB,x
-        lda _1+1		; MSB
-        sta TOS_MSB,x
-.macend
-
-; pushes zero onto the stack
-.macro pushzero
-	dex			; make room on the argument stack
-	dex
-	`zerotos
 .macend
 
 ; drops a word from the stack
@@ -70,10 +41,51 @@ _over:
 	sta _1+1
 .macend
 
+; loads TOS with the word at location provided
+.macro loadtos
+	lda _1
+	sta TOS_LSB,x
+	lda _1+1
+	sta TOS_MSB,x
+.macend
+
+; loads TOS with the immediate value
+.macro loadtosi
+        lda #<_1		; LSB
+        sta TOS_LSB,x
+        lda #>_1		; MSB
+        sta TOS_MSB,x
+.macend
+
 ; makes the TOS zero
 .macro zerotos
 	stz TOS_LSB, x
 	stz TOS_MSB, x
+.macend
+
+; pushes the immediate literal provided as the argument
+.macro pushi
+        `advance
+        `loadtosi _1
+.macend
+
+; pushes the value in the accumulator onto stack and zero extends it.
+.macro pusha
+        `advance
+        sta TOS_LSB,x
+        stz TOS_MSB,x
+.macend
+
+; pushes the value at the address specified at the argument.
+.macro pushv
+        `advance
+	`loadtos
+.macend
+
+; pushes zero onto the stack
+.macro pushzero
+	`advance
+	`zerotos
 .macend
 
 ; saves the word at NOS to the location provided.
@@ -150,4 +162,4 @@ swap:
         pla
         sta TOS_MSB,x
 
-        rts
+        rts 
