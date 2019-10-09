@@ -751,13 +751,7 @@ fc_dovar:       ; pull return address off of the machine's stack, adding one
                 sta TMPADR2+1   ; MSB
 
                 ; get variable and push it on the stack 
-                dex
-                dex
-
-                lda TMPADR2     ; LSB
-                sta 1,x
-                lda TMPADR2+1   ; MSB
-                sta 2,x
+                `pushv TMPADR2
 
                 rts
 .scend
@@ -1267,7 +1261,7 @@ _no_co:         jsr l_cr
                 lda (TMPADR2),y
                 sec
                 sbc 3,x
-                sta 1,x         ; LSB of number of chars
+                sta 1,x         ; LSB of number of chars
                 iny
                 lda (TMPADR2),y  
                 sbc 4,x 
@@ -1370,10 +1364,7 @@ _makecaddr:     ; Put together a c-addr out of addr u. Note it is
                 ; the dictionary. Since we won't be using WORD
                 ; anyway that much, we don't care. Remember PAD is
                 ; reserved for the user
-                lda 3,x         ; move address to ZP for manipulation
-                sta TMPADR
-                lda 4,x
-                sta TMPADR+1
+                `savenos TMPADR
 
                 lda 1,x         ; save length of string in first byte
                 sta (CP)
@@ -1449,14 +1440,8 @@ _nochrs:        ; Only spaces found. Return beginning of CIB
                 ; usually means we're at the end of the line.
                 dex
                 dex
-                dex
-                dex 
-
-                ; return head of CIB as address 
-                lda CIBA
-                sta 1,x
-                lda CIBA+1
-                sta 2,x
+                ; return head of CIB as address
+                `pushv CIBA
 
                 ; return zero as number of chars 
                 `zerotos         ; fall through to _done
@@ -1683,10 +1668,7 @@ _sloop:         ; from the Length Byte of the header, get the length of
                 ; word later one way or another. Copy it to TMPADR2 with
                 ; an offset of 7 so both TMPADR1 and TMPADR2 start with the same 
                 ; first character of their strings
-                lda 3,x         ; LSB of mystery string
-                sta TMPADR1
-                lda 4,x         ; MSB
-                sta TMPADR1+1
+                `savenos TMPADR1
 
                 clc
                 lda TMPADR
@@ -1713,10 +1695,7 @@ _cmploop:       dey             ; we already know first char is the same
 
 _found:         ; If we landed here, we've found the right word. Push xt to 
                 ; the stack (same as link which we've conserved in TMPADR). 
-                lda TMPADR
-                sta 3,x         ; LSB of xt
-                lda TMPADR+1
-                sta 4,x         ; MSB
+                `loadnos TMPADR
                 
                 ; see if this is an immedate word
                 ldy #$02
@@ -1774,10 +1753,7 @@ a_dashtrl:      ; if length entry is zero, return a zero and leave the
                 `toszero?
                 beq _gotzero
 
-                lda 3,x         ; LSB of addr 
-                sta TMPADR
-                lda 4,x         ; MSB of addr
-                sta TMPADR+1
+                `savenos TMPADR
 
                 ; ignore MSB of length 
                 lda 1,x
@@ -2648,7 +2624,7 @@ z_plstore:      rts
 .scend
 ; ----------------------------------------------------------------------------
 ; CONSTANT ( n -- )
-; Could be realized as  CREATE , DOES> @ . We do more in assembler, but let
+; Could be realized as  CREATE , DOES> @ . We do more in assembler, but let
 ; CREATE and , ("COMMA") do the heavy lifting. 
 ; See http://www.bradrodriguez.com/papers/moving3.htm for a primer on how
 ; this works in various Forths. 
@@ -7609,4 +7585,4 @@ fse_defer:     .byte "DEFERed word not defined yet",0
 alphastr:       .byte "0123456789ABCDEFGHIJKLMNOPQRSTUVWYZ"
 ; =============================================================================
 ; END
-; =============================================================================
+; ============================================================================= 
