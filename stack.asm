@@ -63,6 +63,22 @@ _over:
 	stz TOS_MSB, x
 .macend
 
+; decrements the TOS value
+.macro dectos
+	lda TOS_LSB,x
+	bne _over
+	dec TOS_MSB,x
+_over:	dec TOS_LSB,x
+.macend
+
+; increments the TOS value
+.macro inctos
+        inc TOS_LSB,x
+        bne _over
+        inc TOS_MSB,x
+_over:
+.macend
+
 ; pushes the immediate literal provided as the argument
 .macro pushi
         `advance
@@ -80,6 +96,16 @@ _over:
 .macro pushv
         `advance
 	`loadtos
+.macend
+
+;  pushes the value by dereferencing the pointer at the argument.
+.macro pushind
+        `advance
+        lda (_1)
+        sta TOS_LSB,x
+	`incw _1
+        lda (_1)
+        sta TOS_MSB,x
 .macend
 
 ; pushes zero onto the stack
@@ -134,11 +160,7 @@ fetch:
 store:
         lda NOS_LSB,x		; LSB
         sta (TOS_LSB,x)
-
-	inc TOS_LSB,x
-        bne +
-	inc TOS_MSB,x
-*
+	`inctos
 	lda NOS_MSB,x		; MSB
         sta (TOS_LSB,x)
 
@@ -162,4 +184,4 @@ swap:
         pla
         sta TOS_MSB,x
 
-        rts 
+        rts  
