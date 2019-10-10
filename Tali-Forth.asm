@@ -265,10 +265,7 @@ _done:          rts             ; we're good (finally)
 ; Assumes that string is on stack as ( addr u ) and converts it in place. 
 ; Calls f_toupper, destroys A, Y and changes TMPCNT, TMPADR and TMPADR1
 .scope
-f_strtoupper:   lda 3,x         ; LSB of addr
-                sta TMPADR
-                lda 4,x         ; MSB of addr
-                sta TMPADR+1
+f_strtoupper:   `savenos TMPADR
 
                 ldy 1,x         ; LSB of u, we ignore MSB
                 dey             ; adjust length 
@@ -341,11 +338,9 @@ _wordonly:      lda (TMPADR1)   ; LSB
                 sta (CP),y
                 iny
 
-                inc TMPADR1
-                bne +
-                inc TMPADR+1
+                `incw TMPADR1
 
-*               lda (TMPADR1)   ; MSB
+                lda (TMPADR1)   ; MSB
                 sta (CP),y
                 iny
 
@@ -445,10 +440,7 @@ _parseerror:    ; Word not found and it isn't a number, so complain
                 ; and abort. We land here with (addr 0) and u in TMPCNT
 
                 ; print offending word for easier diagnostics
-                lda TMPCNT
-                sta 1,x
-                lda TMPCNT+1 
-                sta 2,x         ; paranoid, should be zero anyway 
+                `loadtos TMPCNT
                 jsr l_type 
 
                 lda #$0b        ; code for syntax error string
@@ -456,10 +448,7 @@ _parseerror:    ; Word not found and it isn't a number, so complain
 
 _found:         ; Found word, stack is now (xt f). Save the xt that was 
                 ; returned before we do anything else. 
-                lda 3,x         ; LSB
-                sta IP
-                lda 4,x         ; MSB
-                sta IP+1
+                `savenos IP
 
                 ; Compile or interpret? 
                 lda STATE 
@@ -853,10 +842,7 @@ l_plit:         bra a_plit
                 .word z_plit
                 .byte "(LITERAL)"
 .scope
-a_plit:         ; make room on stack
-                `advance
-
-                ; get the value after the command
+a_plit:         ; get the value after the command
                 ply             ; LSB
                 pla             ; MSB
                 iny
@@ -865,15 +851,7 @@ a_plit:         ; make room on stack
 *               sty TMPADR      ; LSB
                 sta TMPADR+1
 
-
-                ; get bytes after JSR address
-                lda (TMPADR)    ; LSB
-                sta 1,x
-                inc TMPADR
-                bne +
-                inc TMPADR+1
-*               lda (TMPADR)    ; LSB
-                sta 2,x
+                `pushind TMPADR
 
                 ; replace the new address on the stack 
                 lda TMPADR+1
@@ -1097,11 +1075,7 @@ _nextchar:      ; print next character
                 inc 4,x
 
 _counter:       ; loop counter
-                lda 1,x
-                bne +
-                dec 2,x
-*               dec 1,x
-
+                `dectos
                 dey
                 bne _loop
                 bra a_dump
@@ -1160,10 +1134,7 @@ _found:         ; drop the flag we don't care about
 
                 ; move xt to a place we can index more easily. We use 
                 ; TMPADR2 because DUMP uses TMPADR
-                lda 1,x
-                sta TMPADR2
-                lda 2,x
-                sta TMPADR2+1
+                `savetos TMPADR2
 
                 ; print formated information 
 
@@ -1358,16 +1329,10 @@ _makecaddr:     ; Put together a c-addr out of addr u. Note it is
                 lda 1,x         ; save length of string in first byte
                 sta (CP)
 
-                lda CP          ; beginning of string is old HERE
-                sta 3,x
-                lda CP+1
-                sta 4,x
+                `loadnos CP     ; beginning of string is old HERE
 
-                inc CP          ; increase CP
-                bne +
-                inc CP+1
-
-*               tay
+                `incw CP        ; increase CP
+                tay
                 phy             ; we'll need length again to update CP
 
                 dey             ; convert number of chars to offset 
@@ -1616,10 +1581,8 @@ a_find:         ; convert antiquated counted string to normal format
                 ; there. This gives us (addr u) on the stack
                 lda (1,x)
                 pha 
-                inc 1,x
-                bne +
-                inc 2,x
-*               pla
+                `inctos
+                pla
                 `pusha
 
 l_findint:      ; This is where FIND is used internally so we don't have to
@@ -2146,11 +2109,7 @@ a_spaces:       ; don't even start if we got a zero
                 beq _done
 
                 jsr l_space
-
-                lda 1,x
-                bne +
-                dec 2,x 
-*               dec 1,x
+                `dectos
                 bra a_spaces
 
 _done:          `drop
@@ -2292,11 +2251,9 @@ _accumulate:    ; Starting here, we show (ud1) as (ud1l ud1h)
                 pla
                 sta 2,x         ; now (ud2l ud2h addr1) 
 
-                inc 1,x         ; "1+"
-                bne +
-                inc 2,x         ; now (ud2l ud2h addr1+1)
+                `inctos         ; "1+", now (ud2l ud2h addr1+1)
 
-*               ; decrease counter. Note pForth does this with the Return
+                ; decrease counter. Note pForth does this with the Return
                 ; Stack, we use TMPCNT 
                 dec TMPCNT
                 bne _loop 
@@ -2576,10 +2533,7 @@ l_plstore:      bra a_plstore
                 .byte "+!"
 .scope
 a_plstore:      ; Move address to TMPADR so we can work with it 
-                lda 1,x         ; LSB
-                sta TMPADR
-                lda 2,x         ; MSB 
-                sta TMPADR+1
+                `savetos TMPADR
 
                 ldy #$00
                 lda (TMPADR),y  ; LSB of variable content
@@ -3280,10 +3234,7 @@ l_cmpc:         bra a_cmpc
                 .byte "COMPILE,"
 .scope
 a_cmpc:         ; put xt on zero page where we can work with it better
-                lda 1,x
-                sta TMPADR
-                lda 2,x
-                sta TMPADR+1
+                `savetos TMPADR
 
                 ; See if the dictionary wants us to compile natively ...
                 ldy #$02                ; offset to Length Byte
@@ -3424,14 +3375,8 @@ a_eval:         ; if u is zero, abort
                 pha 
 
                 ; move string addresses to CIB
-                lda 1,x         ; u LSB
-                sta CIBN
-                lda 2,x         ; u MSB (should be zero)
-                sta CIBN+1
-                lda 3,x         ; addr LSB
-                sta CIBA
-                lda 4,x         ; addr MSB
-                sta CIBA+1
+                `savetos CIBN
+                `savenos CIBA
 
                 ; clear >IN
                 stz INP
@@ -3461,11 +3406,7 @@ l_exe:          bra a_exe
                 .word z_exe
                 .byte "EXECUTE"
 .scope
-a_exe:          lda 1,x         ; LSB
-                sta IP
-                lda 2,x         ; MSB
-                sta IP+1
-
+a_exe:          `savetos IP
                 `drop           ; DROP xt
 
                 ; Only JMP has the addressing mode we need, and all the 
@@ -3503,10 +3444,7 @@ l_gtname:       bra a_gtname
 .scope
 a_gtname:       ; xt is the same as the start address of the dictionary entry's 
                 ; header
-                lda 1,x         ; LSB
-                sta TMPADR
-                lda 2,x         ; MSB
-                sta TMPADR+1
+                `savetos TMPADR
 
                 ; The offset to the beginning of the Name Field is always
                 ; seven bytes from the beginning of the dictionary entry
@@ -3547,10 +3485,7 @@ l_gtbody:       bra a_gtbody
 
 a_gtbody:       ; lucky for us, a xt is the same as the start address
                 ; of the dictionary entry's header
-                lda 1,x         ; LSB
-                sta TMPADR
-                lda 2,x         ; MSB
-                sta TMPADR+1
+                `savetos TMPADR
 
                 ; The offset to "a_" is in the second byte of the BRA
                 ; instruction at the beginning of each entry
@@ -3706,18 +3641,11 @@ l_comma:        bra a_comma
 .scope
 a_comma:        lda 1,x         ; LSB
                 sta (CP)
-                inc CP          ; next byte
-                bne +
-                inc CP+1
-
-*               lda 2,x         ; MSB
+                `incw CP        ; next byte
+                lda 2,x         ; MSB
                 sta (CP)
-                inc CP          ; next byte
-                bne _done
-                inc CP+1
-
-_done:          `drop
-
+                `incw CP        ; next byte
+                `drop
 z_comma:        rts
 .scend
 ; -----------------------------------------------------------------------------
@@ -3876,14 +3804,8 @@ a_cmovegt:      ; abort if number of bytes to move is zero
                 beq _abort 
 
 cmovegint:      ; move addresses to where we can work with them 
-                lda 1,x
-                sta TMPCNT
-                lda 2,x
-                sta TMPCNT+1
-                lda 3,x         
-                sta TMPADR2     ; use TMPADR2 because easier to remember
-                lda 4,x
-                sta TMPADR2+1
+                `savetos TMPCNT
+                `savenos TMPADR2        ; use TMPADR2 because easier to remember
                 lda 5,x
                 sta TMPADR1     ; use TMPADR1 because easier to remember 
                 lda 6,x
@@ -3954,14 +3876,8 @@ a_cmove:        ; abort if number of bytes to move is zero
                 beq _abort 
 
 cmoveint:       ; move addresses to where we can work with them 
-                lda 1,x
-                sta TMPCNT
-                lda 2,x
-                sta TMPCNT+1
-                lda 3,x         
-                sta TMPADR2     ; use TMPADR2 because easier to remember
-                lda 4,x
-                sta TMPADR2+1
+                `savetos TMPCNT
+                `savenos TMPADR2        ; use TMPADR2 because easier to remember
                 lda 5,x
                 sta TMPADR1     ; use TMPADR1 because easier to remember 
                 lda 6,x
@@ -4048,9 +3964,7 @@ a_ccom:         lda 1,x         ; we ignore the MSB completely
                 sta (CP)
 
                 ; increase pointer to next byte
-                inc CP
-                bne +
-                inc CP+1
+                `incw CP
 
                 ; TODO make sure haven't allocated more than we have
 
@@ -4082,10 +3996,7 @@ l_charpl:       bra a_charpl
                 .byte "CHAR+" 
 
 .scope
-a_charpl:       inc 1,x         ; LSB
-                bne _done
-                inc 2,x         ; MSB
-_done:
+a_charpl:       `inctos
 z_charpl:       rts
 .scend
 ; -----------------------------------------------------------------------------
@@ -4231,10 +4142,7 @@ a_marker:       ; This is a defining word
 
                 ; What we get on the stack is the DP of the marker itself, 
                 ; but we need the DP of the previous word
-                lda 1,x
-                sta TMPADR
-                lda 2,x
-                sta TMPADR+1
+                `savetos TMPADR
                 `drop
 
                 ; the link to the previous DP is three bytes down
@@ -4513,12 +4421,10 @@ a_count:        lda (1,x)       ; Get number of characters (256 max)
                 pha 
 
                 ; move start address up by one 
-                inc 1,x         ; LSB
-                bne +
-                inc 2,x         ; MSB
+                `inctos
 
                 ; save number of characters to stack 
-*               pla
+                pla
                 `pusha
 
 z_count:        rts
@@ -6666,11 +6572,7 @@ l_1plus:        bra a_1plus
                 .byte "1+"
 .scope
 a_1plus:        ; TODO make sure we have enough entries on the stack  
-
-                inc 1,x         ; LSB
-                bne _done
-                inc 2,x         ; MSB
-_done:
+                `inctos
 z_1plus:        rts
 .scend
 ; -----------------------------------------------------------------------------
@@ -6682,11 +6584,7 @@ l_1minus:       bra a_1minus
                 .word z_1minus
                 .byte "1-"
 .scope
-a_1minus:       lda 1,x
-                bne +
-                dec 2,x
-*               dec 1,x
-
+a_1minus:       `dectos
 z_1minus:       rts
 .scend
 ; -----------------------------------------------------------------------------
@@ -7290,12 +7188,8 @@ l_store:        bra a_store
 .scope
 a_store:        lda 3,x        ; LSB
                 sta (1,x)
-                
-                inc 1,x
-                bne +
-                inc 2,x
-
-*               lda 4,x        ; MSB
+                `inctos
+                lda 4,x        ; MSB
                 sta (1,x)
 
                 `drop
@@ -7481,4 +7375,4 @@ fse_defer:     .byte "DEFERed word not defined yet",0
 alphastr:       .byte "0123456789ABCDEFGHIJKLMNOPQRSTUVWYZ"
 ; =============================================================================
 ; END
-; =============================================================================  
+; =============================================================================   
