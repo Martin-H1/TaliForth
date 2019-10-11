@@ -95,7 +95,7 @@ _over:
 ; pushes the value at the address specified at the argument.
 .macro pushv
         `advance
-	`loadtos
+	`loadtos _1
 .macend
 
 ;  pushes the value by dereferencing the pointer at the argument.
