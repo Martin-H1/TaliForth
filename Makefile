@@ -1,7 +1,7 @@
 # Common set of macros to enable Linux versus Windows portability.
 ifeq ($(OS),Windows_NT)
-    OPHIS = "C:\Program Files (x86)\Ophis\ophis"
-    PY65MON = "C:\Python27\Scripts\py65mon"
+    OPHIS = "C:/Program Files (x86)/Ophis/ophis.exe"
+    PY65MON = "%HOME%\AppData\Roaming\Python\Python36\Scripts\py65mon"
     PYTHON = python
     RM = del /f /q
     RMDIR = rmdir /s /q
