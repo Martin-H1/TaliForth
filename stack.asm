@@ -131,33 +131,32 @@ _over:
 .macend
 
 ; duplicates the value at TOS on the stack.
-dup:
-        dex			; make room on the stack
-        dex
+.macro dup
+        `advance
         lda NOS_LSB,x		; copy the word.
         sta TOS_LSB,x
         lda NOS_MSB,x
         sta TOS_MSB,x
-	rts
+.macend
 
 ; fetch dereferences the current TOS and replaces the value on TOS.
-fetch:
+.macro fetch
         lda TOS_LSB,x
-        sta TMPADR		; LSB
+        sta _1		; LSB
         lda TOS_MSB,x
-        sta TMPADR+1		; MSB
-        lda (TMPADR)		; LSB of address in memory
+        sta _1+1		; MSB
+        lda (_1)		; LSB of address in memory
 	sta TOS_LSB,x
 
-	`incw TMPADR
+	`incw _1
 
-	lda (TMPADR)		; MSB of address in memory
+	lda (_1)		; MSB of address in memory
         sta TOS_MSB,x
-        rts
+.macend
 
 ; stores the value in NOS at the address specified in TOS and drops
 ; the values from the stack.
-store:
+.macro store
         lda NOS_LSB,x		; LSB
         sta (TOS_LSB,x)
 	`inctos
@@ -166,10 +165,10 @@ store:
 
 	`drop
 	`drop
-        rts
+.macend
 
 ; swaps top of stack (TOS) to next on stack (NOS)
-swap:
+.macro swap
         lda NOS_LSB,x		; LSB of both words first
         pha			; use stack as a temporary
         lda TOS_LSB,x
@@ -183,5 +182,4 @@ swap:
         sta NOS_MSB,x
         pla
         sta TOS_MSB,x
-
-        rts  
+.macend
