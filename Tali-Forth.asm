@@ -60,9 +60,6 @@
 ; makes stack manipulations easier to understand, as entries are accessed
 ; by adding to the stack pointer (X register) instead of subtracting.
 
-.alias SPMAX    $00     ; top of parameter (data) stack
-.alias SP0      $7F     ; bottom of parameter (data) stack
-
 ; The top 16 bytes of the zero page ($F0 to $FF) and the 16 bytes above 
 ; the stack ($80 to $8F) are left unused as a "flood plain" in case of 
 ; stack over- or underflow as these conditions are only tested for after
@@ -265,7 +262,7 @@ _done:          rts             ; we're good (finally)
 ; Assumes that string is on stack as ( addr u ) and converts it in place. 
 ; Calls f_toupper, destroys A, Y and changes TMPCNT, TMPADR and TMPADR1
 .scope
-f_strtoupper:   `savenos TMPADR
+f_strtoupper:   `peeknos TMPADR
 
                 ldy 1,x         ; LSB of u, we ignore MSB
                 dey             ; adjust length 
@@ -447,7 +444,7 @@ _parseerror:    ; Word not found and it isn't a number, so complain
 
 _found:         ; Found word, stack is now (xt f). Save the xt that was 
                 ; returned before we do anything else. 
-                `savenos IP
+                `peeknos IP
 
                 ; Compile or interpret? 
                 lda STATE 
@@ -705,17 +702,9 @@ fc_docon:       ; value is stored in the two bytes after the JSR
                 pla                     ; MSB of return address
                 sta TMPADR2+1
 
-                ; make room on stack and save the value there
-                `advance
-
-                ; start LDY off with one instead of zero because of how JSR
-                ; stores the address for RTS
-                ldy #$01
-                lda (TMPADR2),y         ; LSB 
-                sta 1,x
-                iny
-                lda (TMPADR2),y         ; MSB 
-                sta 2,x
+                ; Increment address because of how JSR stores RTS address
+                `incw TMPADR2
+                `pushind TMPADR2
 
                 ; the RTS takes us back to the original caller 
                 rts
@@ -1133,7 +1122,7 @@ _found:         ; drop the flag we don't care about
 
                 ; move xt to a place we can index more easily. We use 
                 ; TMPADR2 because DUMP uses TMPADR
-                `savetos TMPADR2
+                `peek TMPADR2
 
                 ; print formated information 
 
@@ -1323,7 +1312,7 @@ _makecaddr:     ; Put together a c-addr out of addr u. Note it is
                 ; the dictionary. Since we won't be using WORD
                 ; anyway that much, we don't care. Remember PAD is
                 ; reserved for the user
-                `savenos TMPADR
+                `peeknos TMPADR
 
                 lda 1,x         ; save length of string in first byte
                 sta (CP)
@@ -1487,7 +1476,8 @@ a_accept:       ; just quit if we were told to get zero bytes
                 `toszero?
                 beq _gotzero
 
-                .invoke load_addrn
+                `peek TMPCNT
+                `peeknos TMPADR
 
                 ; Start with an empty Current Input Buffer (CIB)
                 ldy #$00        
@@ -1617,7 +1607,7 @@ _sloop:         ; from the Length Byte of the header, get the length of
                 ; word later one way or another. Copy it to TMPADR2 with
                 ; an offset of 7 so both TMPADR1 and TMPADR2 start with the same 
                 ; first character of their strings
-                `savenos TMPADR1
+                `peeknos TMPADR1
 
                 clc
                 lda TMPADR
@@ -1701,7 +1691,7 @@ a_dashtrl:      ; if length entry is zero, return a zero and leave the
                 `toszero?
                 beq _gotzero
 
-                `savenos TMPADR
+                `peeknos TMPADR
 
                 ; ignore MSB of length 
                 lda 1,x
@@ -1905,7 +1895,7 @@ a_squote:       ; use PARSE to find the end of the string
                 ; we love our strings
 
                 ; the source address is in NOS. Save that to TMPADR
-_savestring:    `savenos TMPADR
+_savestring:    `peeknos TMPADR
 
                 ; we still have the length of the string in the lower byte of 
                 ; TOS. Note we only deal with strings >$FF for the moment
@@ -2521,7 +2511,7 @@ l_plstore:      bra a_plstore
                 .byte "+!"
 .scope
 a_plstore:      ; Move address to TMPADR so we can work with it 
-                `savetos TMPADR
+                `peek TMPADR
 
                 ldy #$00
                 lda (TMPADR),y  ; LSB of variable content
@@ -3218,7 +3208,7 @@ l_cmpc:         bra a_cmpc
                 .byte "COMPILE,"
 .scope
 a_cmpc:         ; put xt on zero page where we can work with it better
-                `savetos TMPADR
+                `peek TMPADR
 
                 ; See if the dictionary wants us to compile natively ...
                 ldy #$02                ; offset to Length Byte
@@ -3358,8 +3348,8 @@ a_eval:         ; if u is zero, abort
                 pha 
 
                 ; move string addresses to CIB
-                `savetos CIBN
-                `savenos CIBA
+                `peek CIBN
+                `peeknos CIBA
 
                 ; clear >IN
                 stz INP
@@ -3389,8 +3379,7 @@ l_exe:          bra a_exe
                 .word z_exe
                 .byte "EXECUTE"
 .scope
-a_exe:          `savetos IP
-                `drop           ; DROP xt
+a_exe:          `pop IP
 
                 ; Only JMP has the addressing mode we need, and all the 
                 ; Forth commands end with a RTS instruction. We fake the 
@@ -3427,7 +3416,7 @@ l_gtname:       bra a_gtname
 .scope
 a_gtname:       ; xt is the same as the start address of the dictionary entry's 
                 ; header
-                `savetos TMPADR
+                `peek TMPADR
 
                 ; The offset to the beginning of the Name Field is always
                 ; seven bytes from the beginning of the dictionary entry
@@ -3467,7 +3456,7 @@ l_gtbody:       bra a_gtbody
 
 a_gtbody:       ; lucky for us, a xt is the same as the start address
                 ; of the dictionary entry's header
-                `savetos TMPADR
+                `peek TMPADR
 
                 ; The offset to "a_" is in the second byte of the BRA
                 ; instruction at the beginning of each entry
@@ -3786,8 +3775,8 @@ a_cmovegt:      ; abort if number of bytes to move is zero
                 beq _abort 
 
 cmovegint:      ; move addresses to where we can work with them 
-                `savetos TMPCNT
-                `savenos TMPADR2        ; use TMPADR2 because easier to remember
+                `peek TMPCNT
+                `peeknos TMPADR2 ; use TMPADR2 because easier to remember
                 lda 5,x
                 sta TMPADR1     ; use TMPADR1 because easier to remember 
                 lda 6,x
@@ -3858,8 +3847,8 @@ a_cmove:        ; abort if number of bytes to move is zero
                 beq _abort 
 
 cmoveint:       ; move addresses to where we can work with them 
-                `savetos TMPCNT
-                `savenos TMPADR2        ; use TMPADR2 because easier to remember
+                `peek TMPCNT
+                `peeknos TMPADR2 ; use TMPADR2 because easier to remember
                 lda 5,x
                 sta TMPADR1     ; use TMPADR1 because easier to remember 
                 lda 6,x
@@ -4038,7 +4027,8 @@ a_fill:         ; TODO check if we have enough stuff on the stack
                 `drop           ; drop char, we now have (addr u)
 
                 ; put stack values in zero page
-                .invoke load_addrn
+                `peek TMPCNT
+                `peeknos TMPADR
 
                 pla 
                 ldy #$00
@@ -4123,8 +4113,7 @@ a_marker:       ; This is a defining word
 
                 ; What we get on the stack is the DP of the marker itself, 
                 ; but we need the DP of the previous word
-                `savetos TMPADR
-                `drop
+                `pop TMPADR
 
                 ; the link to the previous DP is three bytes down
                 ldy #$03
@@ -5952,8 +5941,7 @@ a_ploop:        ; compile (+LOOP) -- don't call f_cmpljsr because this must
                 ; complete compile of DO/?DO by replacing the six
                 ; dummy bytes by PHA instructions. The address where 
                 ; they are located is on the Data Stack
-                `savetos TMPADR
-                `drop
+                `pop TMPADR
 
                 ; because of the way that RTS works we don't need to 
                 ; save CP, but CP-1
