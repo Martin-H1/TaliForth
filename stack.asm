@@ -1,12 +1,28 @@
+; The origin of this code is Scot W. Stevenson's <scot.stevenson@gmail.com>
+; Tali Forth for the 65C02. His ideas were sound, but his code was inline
+; and lacked abstraction or resuability.
+;
+; My goal with these macros is to implement the stack abstract data type to
+; make Tali Forth more readable, and create a resuable stack library. Most
+; operations align with the classic data structure, but with the addition of
+; methods to push to top of stack from different sources (e.g. accumulator,
+; RAM, and return stack), and direct access to TOS and NOS for efficiency.
+;
 ; The argument stack is the first half of zero page. It starts at $7F and
 ; grows downward towards $00 (128 bytes --> 64 words). This allows for
 ; over and underlow detection via highest bit being zero. It also reserves
 ; half of zero page for direct addressing.
 
-.alias NOS_LSB	$03		; offset from X register for NOS and TOS.
-.alias NOS_MSB	$04
+.alias SPMAX    $00     ; top of parameter (data) stack
+.alias SP0      $7F     ; bottom of parameter (data) stack
+
+; offset from X register for NOS and TOS.
 .alias TOS_LSB	$01
 .alias TOS_MSB	$02
+.alias NOS_LSB	$03
+.alias NOS_MSB	$04
+.alias THS_LSB	$05
+.alias THS_MSB	$06
 
 .macro incw
         inc _1
@@ -31,14 +47,6 @@ _over:
 .macro toszero?
 	lda TOS_LSB, x
 	ora TOS_MSB, x
-.macend
-
-; saves the word at TOS to the location provided.
-.macro savetos
-	lda TOS_LSB,x
-	sta _1
-	lda TOS_MSB,x
-	sta _1+1
 .macend
 
 ; loads TOS with the word at location provided
@@ -85,6 +93,20 @@ _over:	dec TOS_LSB,x
 _over:
 .macend
 
+; Nondestructively saves the word at TOS to the location provided.
+.macro peek
+	lda TOS_LSB,x
+	sta _1
+	lda TOS_MSB,x
+	sta _1+1
+.macend
+
+; Destructively saves the word at TOS to the location provided.
+.macro pop
+	`peek _1
+	`drop
+.macend
+
 ; pushes the immediate literal provided as the argument
 .macro pushi
         `advance
@@ -119,8 +141,8 @@ _over:
 	`zerotos
 .macend
 
-; saves the word at NOS to the location provided.
-.macro savenos
+; nondestructively saves the word at NOS to the location provided.
+.macro peeknos
 	lda NOS_LSB,x
 	sta _1
 	lda NOS_MSB,x
