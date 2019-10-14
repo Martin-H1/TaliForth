@@ -402,8 +402,7 @@ _parseword:     ; PARSE-NAME ("text" -- addr u)
                 ; we need to send (addr u) to NUMBER. Good thing we saved
                 ; n to TMPCNT+1
                 lda TMPCNT+1
-                sta 1,x
-                stz 2,x         ; paranoid
+                `loadtosa
 
                 jsr l_number    ; returns (n -1 | d -1 | addr 0 ) 
 
@@ -1552,8 +1551,7 @@ _done:          ; add a final space as delimiter (paranoid)
                 ; return length of string found
                 tya 
                 `drop
-                sta 1,x         ; LSB
-                stz 2,x         ; MSB is always zero
+                `loadtosa
 
                 ; print a final space 
                 jsr l_space
@@ -1662,8 +1660,7 @@ _found:         ; If we landed here, we've found the right word. Push xt to
 
 _imm:           ; immediate 
                 lda #$01        ; flag 1
-                sta 1,x         ; LSB
-                stz 2,x         ; MSB always zero
+                `loadtosa
 
                 bra _finished
                 
@@ -1724,8 +1721,7 @@ _loop:          lda (TMPADR),y
 
 _done:          iny             ; Y is offset, we need the length 
                 tya             ; store new n in LSB
-                sta 1,x
-                stz 2,x         ; always zero 
+                `loadtosa
 
 _gotzero:       
 z_dashtrl:      rts
@@ -1909,10 +1905,7 @@ a_squote:       ; use PARSE to find the end of the string
                 ; we love our strings
 
                 ; the source address is in NOS. Save that to TMPADR
-_savestring:    lda 3,x
-                sta TMPADR
-                lda 4,x
-                sta TMPADR+1
+_savestring:    `savenos TMPADR
 
                 ; we still have the length of the string in the lower byte of 
                 ; TOS. Note we only deal with strings >$FF for the moment
@@ -1926,10 +1919,7 @@ _savestring:    lda 3,x
                 ; The old CP is the first byte of the string, so we put that
                 ; on NOS, replacing the buffer's address. The length, TOS, 
                 ; stays the same
-                lda CP          ; LSB
-                sta 3,x
-                lda CP+1
-                sta 4,x         ; MSB
+                `loadnos CP
 
                 ; now we have to move the CP by the length of the string, which
                 ; is in the LSB of the TOS. Note again max string length is $FF
@@ -2104,8 +2094,7 @@ l_spaces:       bra a_spaces
 
 .scope
 a_spaces:       ; don't even start if we got a zero
-                lda 2,x         ; MSB
-                ora 1,x         ; LSB
+                `toszero?
                 beq _done
 
                 jsr l_space
@@ -2202,8 +2191,7 @@ _loop:          ; feed each character through DIGIT>NUMBER.
                 ; we have got so far
                 `drop           ; drop flag, now (ud addr char)
                 lda TMPCNT      ; number of characters we haven't converted
-                sta 1,x
-                stz 2,x         ; always zero; now (ud2 addr2 n2)
+                `loadtosa       ; always zero; now (ud2 addr2 n2)
 
                 rts             ; okay because this won't be native compile
 
@@ -2688,9 +2676,7 @@ a_pdoes:        ; Get the address of the machine code that follows
                 sta TMPADR+1
 
                 ; Increase it by one because of the way the JSR works
-                inc TMPADR
-                bne +
-                inc TMPADR+1
+                `incw TMPADR
 
                 ; CREATE automatically added a subroutine jump to DOVAR 
                 ; to our new word. We need to replace it with a jump to 
@@ -2699,7 +2685,7 @@ a_pdoes:        ; Get the address of the machine code that follows
                 ; use that as the base -- we can't just use the CP like
                 ; CONSTANT because we don't know which instructions all 
                 ; followed the CREATE command. 
-*               lda DP
+                lda DP
                 sta TMPADR2
                 lda DP+1
                 sta TMPADR2+1
@@ -2811,8 +2797,7 @@ a_create:       ; see if we were given a name. Ideally, this returns
 
                 ; reserve the bytes we'll need for the header. This overwrites 
                 ; the length of the name string on the stack
-                sta 1,x         ; LSB
-                stz 2,x         ; MSB is ignored, we're never that long
+                `loadtosa
 
                 jsr l_allot     ; removes top entry of stack
 
@@ -3052,8 +3037,7 @@ f_postpo_int:   ; This is the internal version of POSTPONE that lets us use
 
 _imm_flag:      ; immediate 
                 lda #$01        ; flag 1
-                sta 1,x         ; LSB
-                stz 2,x         ; MSB always zero
+                `loadtosa
 
 _finished:      ; repair 65c02 stack for return jump 
                 lda TMPADR
@@ -3291,8 +3275,7 @@ a_cmpc:         ; put xt on zero page where we can work with it better
 
                 lda TMPADR2     ; number of bytes to copy 
                 pha             ; save it because CMOVE> uses TMPADR2
-                sta 1,x
-                stz 2,x         ; always zero 
+                `loadtosa
 
                 ; let CMOVE> do the hard work 
                 jsr l_cmovegt 
@@ -3466,8 +3449,7 @@ a_gtname:       ; xt is the same as the start address of the dictionary entry's
 
                 ; mask everything except the length
                 and #%00011111
-                sta 1,x         ; LSB
-                stz 2,x         ; paranoid, MSB is always zero 
+                `loadtosa
 
 z_gtname:       rts
 .scend
@@ -3930,8 +3912,7 @@ l_cfetch:       bra a_cfetch
                 .byte "C@"
 
 a_cfetch:       lda (1,x)
-                sta 1,x
-                stz 2,x                 ; always zero 
+                `loadtosa
 
 z_cfetch:       rts
 ; -----------------------------------------------------------------------------
@@ -4272,8 +4253,7 @@ l_2upper:       bra a_2upper
 .scope
 a_2upper:       lda 1,x
                 jsr f_toupper 
-                sta 1,x
-                stz 2,x         ; paranoid, always zero  
+                `loadtosa
 
 z_2upper:       rts
 .scend
@@ -4299,8 +4279,7 @@ a_bchar:        ; get the next character in the stream
 *               `drop           ; drop number of characters, leaving address
 
                 lda (1,x)       ; get characters 
-                sta 1,x
-                stz 2,x         ; MSB always zero
+                `loadtosa
 
                 jsr l_lit       ; LITERAL 
 
@@ -4329,8 +4308,7 @@ a_char:         ; get the next character, returns ( addr u )
 
                 lda (1,x)       ; get character (equivalent to C@) 
 
-                sta 1,x
-                stz 2,x         ; MSB is always zero 
+                `loadtosa
 
 z_char:         rts
 .scend
@@ -4809,8 +4787,7 @@ a_sign:         lda 2,x         ; check MSB of TOS
                 bra _done 
                 
 _minus:         lda #$2D        ; char "-" 
-                sta 1,x         ; overwrite n 
-                stz 2,x         ; paranoid, always zero 
+                `loadtosa       ; overwrite n
 
                 jsr l_hold      ; drop through to _done
 _done:
@@ -4903,8 +4880,7 @@ a_num:          jsr l_base      ; BASE
                 lda alphastr,x
                 plx 
 
-                sta 1,x         ; overwrites remainder 
-                stz 2,x         ; paranoid, should always be zero
+                `loadtosa       ; overwrites remainder
 
                 jsr l_hold      ; HOLD, now ( ud2 ) on stack  
 
