@@ -24,6 +24,13 @@
 .alias THS_LSB	$05
 .alias THS_MSB	$06
 
+.macro decw
+        lda _1
+        bne _over
+        dec _1+1
+_over:  dec _1
+.macend
+
 .macro incw
         inc _1
         bne _over
@@ -65,14 +72,30 @@ _over:
         sta TOS_MSB,x
 .macend
 
+;  loads the value by dereferencing the pointer at the argument.
+.macro loadtosind
+	lda (_1)
+	sta TOS_LSB,x
+	`incw _1
+	lda (_1)
+	sta TOS_MSB,x
+.macend
+
 ; loads TOS with the accumulator padded with zeros.
 .macro loadtosa
-        sta TOS_LSB,x
-        stz TOS_MSB,x
+	sta TOS_LSB,x
+	stz TOS_MSB,x
+.macend
+
+; loads TOS with true (-1)
+.macro loadtostrue
+	lda #$FF
+	sta TOS_LSB,x
+	sta TOS_MSB,x
 .macend
 
 ; makes the TOS zero
-.macro zerotos
+.macro loadtoszero
 	stz TOS_LSB, x
 	stz TOS_MSB, x
 .macend
@@ -128,17 +151,13 @@ _over:
 ;  pushes the value by dereferencing the pointer at the argument.
 .macro pushind
         `advance
-        lda (_1)
-        sta TOS_LSB,x
-	`incw _1
-        lda (_1)
-        sta TOS_MSB,x
+        `loadtosind _1
 .macend
 
 ; pushes zero onto the stack
 .macro pushzero
 	`advance
-	`zerotos
+	`loadtoszero
 .macend
 
 ; nondestructively saves the word at NOS to the location provided.
@@ -157,6 +176,12 @@ _over:
 	sta NOS_MSB,x
 .macend
 
+; loads the value in the accumulator to NOS and zero extends it.
+.macro loadnosa
+	sta NOS_LSB,x
+	stz NOS_MSB,x
+.macend
+
 ; duplicates the value at TOS on the stack.
 .macro dup
         `advance
@@ -168,17 +193,8 @@ _over:
 
 ; fetch dereferences the current TOS and replaces the value on TOS.
 .macro fetch
-        lda TOS_LSB,x
-        sta _1		; LSB
-        lda TOS_MSB,x
-        sta _1+1		; MSB
-        lda (_1)		; LSB of address in memory
-	sta TOS_LSB,x
-
-	`incw _1
-
-	lda (_1)		; MSB of address in memory
-        sta TOS_MSB,x
+        `peek _1
+        `loadtosind _1
 .macend
 
 ; stores the value in NOS at the address specified in TOS and drops
@@ -207,6 +223,24 @@ _over:
         pha
         lda TOS_MSB,x
         sta NOS_MSB,x
+        pla
+        sta TOS_MSB,x
+.macend
+
+; Moves a cell from the data stack to return stack.
+.macro popToR
+        lda TOS_MSB,x
+        pha
+        lda TOS_LSB,x
+        pha
+        `drop
+.macend
+
+; Moves a cell from return stack to data stack.
+.macro pushFromR
+        `advance
+        pla
+        sta TOS_LSB,x
         pla
         sta TOS_MSB,x
 .macend
