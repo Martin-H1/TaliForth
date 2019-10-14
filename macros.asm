@@ -53,22 +53,6 @@
 ;==============================================================================
 
 ; -----------------------------------------------------------------------------
-; MACRO for moving (addr n) to TMPADR and TMPCNT. 
-; Use with ".invoke load_addrn"
-; TODO get rid of this to make code more easy to read
-.macro load_addrn
-        lda $4,x       ; MSB of address
-        sta TMPADR+1
-        lda $3,x       ; LSB of address
-        sta TMPADR
-
-        lda $2,x       ; MSB of counter
-        sta TMPCNT+1
-        lda $1,x       ; LSB of counter
-        sta TMPCNT
-.macend
-
-; -----------------------------------------------------------------------------
 ; MACRO for printing strings via the Forth routines
 ; Use with ".invoke fprint <string address>"
 .macro fprint
