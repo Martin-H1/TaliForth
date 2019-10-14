@@ -4969,9 +4969,7 @@ a_stod:         `advance
                 lda 4,x         ; MSB of high byte
                 bpl _pos 
 
-                lda #$FF        ; extend negative sign
-                sta 1,x
-                sta 2,x
+                `loadtostrue    ; extend negative sign
                 bra _done
 
 _pos:           `loadtoszero    ; nope, we're positive, fall through to done
@@ -6264,10 +6262,7 @@ l_then:         bra a_then
 a_then:         ; Put differently, this routine has us store the CP at
                 ; the address that is provided TOS. Note that INC doesn't
                 ; allow 1,x addressing so we have to do this the hard way
-                lda 1,x
-                sta TMPADR
-                lda 2,x
-                sta TMPADR+1
+                `peek TMPADR
 
                 lda CP
                 sta (TMPADR)
@@ -6482,10 +6477,7 @@ l_true:         bra a_true
                 .word z_true
                 .byte "TRUE"
 
-a_true:         `advance
-                lda #$FF
-                sta 1,x
-                sta 2,x
+a_true:         `pushtrue
 
 z_true:         rts
 ; -----------------------------------------------------------------------------
@@ -6677,14 +6669,9 @@ l_nip:          bra a_nip
                 .word z_nip
                 .byte "NIP"
 
-a_nip:          lda 1,x         ; LSB
-                sta 3,x
-                lda 2,x         ; MSB
-                sta 4,x
-
-                `drop
-
+a_nip:          `nip
 z_nip:          rts
+
 ; ----------------------------------------------------------------------------
 ; 2SWAP ( n1 n2 n3 n4 -- n3 n4 n1 n2 ) 
 ; Exchange the top two cell pairs 
