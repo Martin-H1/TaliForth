@@ -154,6 +154,12 @@ _over:
         `loadtosind _1
 .macend
 
+; pushes true onto the stack
+.macro pushtrue
+	`advance
+	`loadtostrue
+.macend
+
 ; pushes zero onto the stack
 .macro pushzero
 	`advance
@@ -195,6 +201,15 @@ _over:
 .macro fetch
         `peek _1
         `loadtosind _1
+.macend
+
+; deletes NOS on the stack.
+.macro nip
+	lda TOS_LSB,x         ; LSB
+	sta NOS_LSB,x
+	lda TOS_MSB,x         ; MSB
+	sta NOS_MSB,x
+	`drop
 .macend
 
 ; stores the value in NOS at the address specified in TOS and drops
