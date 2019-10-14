@@ -6726,23 +6726,7 @@ l_swap:         bra a_swap
                 .byte "SWAP"
 .scope
 a_swap:         ; save next entry on stack (NOS)
-                lda 3,x        ; LSB  
-                pha
-                lda 4,x        ; MSB
-                pha
-
-                ; move top of stack (TOS) to NOS 
-                lda 1,x        ; LSB
-                sta 3,x
-                lda 2,x        ; MSB
-                sta 4,x
-
-                ; restore NOS to TOS 
-                pla             
-                sta 2,x        ; MSB
-                pla
-                sta 1,x        ; LSB
-
+                `swap
 z_swap:         rts
 .scend
 ; -----------------------------------------------------------------------------
@@ -6779,12 +6763,7 @@ l_qdup:         bra a_qdup
 .scope
 a_qdup:         `toszero?
                 beq _done
-
-                `advance
-                lda 3,x
-                sta 1,x
-                lda 4,x
-                sta 2,x
+                `dup
 _done:
 z_qdup:         rts
 .scend
@@ -6797,12 +6776,7 @@ l_dup:          bra a_dup
                 .word z_dup
                 .byte "DUP"
 
-a_dup:          `advance
-
-                lda 3,x         ; LSB
-                sta 1,x
-                lda 4,x         ; MSB
-                sta 2,x
+a_dup:          `dup
 
 z_dup:          rts
 ; ----------------------------------------------------------------------------
@@ -6896,19 +6870,14 @@ l_fromr:        bra a_fromr
                 .word z_fromr
                 .byte "R>"
 
-a_fromr:        `advance
-
-                ; save the return address
+a_fromr:        ; save the return address
                 pla             ; LSB
                 sta TMPADR
                 pla             ; MSB
                 sta TMPADR+1
 
                 ; now we can access the data
-                pla             ; LSB
-                sta 1,x
-                pla             ; MSB
-                sta 2,x         
+                `pushFromR
 
                 ; restore return address
                 lda TMPADR+1   ; MSB
@@ -6936,18 +6905,13 @@ a_tor:          ; save the return address
                 sta TMPADR+1
 
                 ; now we can move the data 
-                lda 2,x         ; MSB
-                pha
-                lda 1,x         ; LSB
-                pha
+                `popToR
 
                 ; restore return address
                 lda TMPADR+1   ; MSB
                 pha
                 lda TMPADR     ; LSB
                 pha 
-
-                `drop
 
 z_tor:          rts
 .scend
@@ -7087,19 +7051,7 @@ l_fetch:        bra a_fetch
                 .word z_fetch
                 .byte "@"
 
-a_fetch:        lda 1,x        ; LSB
-                sta TMPADR
-                lda 2,x        ; MSB
-                sta TMPADR+1
-                
-                lda (TMPADR)    ; LSB of address in memory
-                sta 1,x
-                inc TMPADR      
-                bne +
-                inc TMPADR+1 
-
-*               lda (TMPADR)    ; MSB of address in memory
-                sta 2,x
+a_fetch:        `fetch TMPADR
 
 z_fetch:        rts
 ; -----------------------------------------------------------------------------
@@ -7111,14 +7063,7 @@ l_store:        bra a_store
                 .word z_store
                 .byte "!"
 .scope
-a_store:        lda 3,x        ; LSB
-                sta (1,x)
-                `inctos
-                lda 4,x        ; MSB
-                sta (1,x)
-
-                `drop
-                `drop
+a_store:        `store
                
 z_store:        rts
 .scend
