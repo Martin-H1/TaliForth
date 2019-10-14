@@ -57,6 +57,12 @@ _over:
         sta TOS_MSB,x
 .macend
 
+; loads TOS with the accumulator padded with zeros.
+.macro loadtosa
+        sta TOS_LSB,x
+        stz TOS_MSB,x
+.macend
+
 ; makes the TOS zero
 .macro zerotos
 	stz TOS_LSB, x
@@ -88,8 +94,7 @@ _over:
 ; pushes the value in the accumulator onto stack and zero extends it.
 .macro pusha
         `advance
-        sta TOS_LSB,x
-        stz TOS_MSB,x
+        `loadtosa
 .macend
 
 ; pushes the value at the address specified at the argument.
