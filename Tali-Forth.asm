@@ -938,12 +938,9 @@ _getline:       ; Get one line of input from the user. Keelah se'lai!
                 ; ACCEPT returns the number of characters given, which we
                 ; put in CIBN. Note we only accept up to $FF chars, so 
                 ; CIBN+1 is a dummy value, included in case we later want to
-                ; expand this to 16 bit 
-                lda 1,x
-                sta CIBN
+                ; expand this to 16 bit
+                `pop CIBN
                 stz CIBN+1      ; paranoid, always zero 
-
-                `drop           ; drop return value
 
                 ; Reset pointer (>IN) 
                 stz INP
@@ -1642,9 +1639,7 @@ _found:         ; If we landed here, we've found the right word. Push xt to
                 bmi _imm 
 
                 ; not immedate
-                lda #$FF        ; flag -1 
-                sta 1,x         ; LSB
-                sta 2,x         ; MSB
+                `loadtostrue
 
                 bra _finished
 
@@ -1671,7 +1666,7 @@ _nomatch:       ; this is not the word we are looking for so get link to
 
                 bra _sloop
 
-_alldone:       `zerotos        ; put fail flag ($0000) on stack
+_alldone:       `loadtoszero    ; put fail flag ($0000) on stack
                 
 _finished:
 z_find:         rts
@@ -2195,11 +2190,7 @@ _accumulate:    ; Starting here, we show (ud1) as (ud1l ud1h)
 
                 jsr l_swap      ; now (ud1l ud1h n addr1) 
 
-                lda 2,x         ; ">R"
-                pha
-                lda 1,x
-                pha             
-                `drop           ; now (ud1l ud1h n) (R: addr1)
+                `popToR         ; now (ud1l ud1h n) (R: addr1)
 
                 jsr l_swap      ; now (ud1l n ud1h) (R: addr1)
 
@@ -2223,11 +2214,7 @@ _accumulate:    ; Starting here, we show (ud1) as (ud1l ud1h)
 
                 ; got to next character 
                 ; TODO OMG. Rewrite this with less stack-pushing
-                `advance        ; "R>"
-                pla 
-                sta 1,x
-                pla
-                sta 2,x         ; now (ud2l ud2h addr1) 
+                `pushFromR      ; now (ud2l ud2h addr1)
 
                 `inctos         ; "1+", now (ud2l ud2h addr1+1)
 
@@ -2370,9 +2357,7 @@ _pos:           ; should this be a double-cell number?
 
 _flag:          ; set flag to success. If this is a single cell number, 
                 ; this overwrites the top part of the double number 
-                lda #$FF
-                sta 1,x
-                sta 2,x         ; now (n -1 | d -1) on the sack 
+                `loadtostrue    ; now (n -1 | d -1) on the sack
 
                 rts             ; not native compiled so we can just return
 
@@ -2432,16 +2417,13 @@ _checkbase:     ; make sure our number is inside the base range
                 bcc _success 
 
 _notdigit:      ; assumes char still in NOS 
-                `zerotos
+                `loadtoszero
                
                 bra _done       ; don't use RTS here because of compile 
 
-_success:       sta 3,x         ; put number in LSB 
-                stz 4,x         ; paranoid, always zero 
+_success:       `loadnosa
 
-                lda #$FF        ; flag for success
-                sta 1,x
-                sta 2,x
+                `loadtostrue    ; flag for success
 _done:
 z_digit:        rts
 .scend
@@ -3020,9 +3002,7 @@ f_postpo_int:   ; This is the internal version of POSTPONE that lets us use
                 bmi _imm_flag
 
                 ; not immedate
-                lda #$FF        ; flag -1 
-                sta 1,x         ; LSB
-                sta 2,x         ; MSB
+                `loadtostrue    ; flag -1
                 bra _finished
 
 _imm_flag:      ; immediate 
@@ -4409,14 +4389,11 @@ a_0lt:          lda 2,x         ; MSB
                 bmi +
 
                 ; TOS is positive, so return FALSE (zero on stack)
-                lda #$00
-                bra _store 
+                `loadtoszero
+                rts
 
 *               ; TOS is negative, so return TRUE ($FFFF on stack)
-                lda #$FF
-
-_store:         sta 1,x
-                sta 2,x
+                `loadtostrue
 
 z_0lt:          rts
 .scend
@@ -4803,10 +4780,7 @@ a_hold:         ; This is actually pretty sneaky code: The new string is
                 ; with the PAD but still use its address
 
                 ; Decrease the address we save the character to by one
-                lda OUTP        ; -1 HLD +!
-                bne +
-                dec OUTP+1
-*               dec OUTP
+                `decw OUTP
 
                 ; Save character. We ignore the MSB which should be zero 
                 ; anyway
@@ -5000,7 +4974,7 @@ a_stod:         `advance
                 sta 2,x
                 bra _done
 
-_pos:           `zerotos        ; nope, we're positive, fall through to done
+_pos:           `loadtoszero    ; nope, we're positive, fall through to done
 _done: 
 z_stod:         rts
 .scend
