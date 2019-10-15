@@ -212,6 +212,15 @@ _over:
 	`drop
 .macend
 
+; allocates a cell and stores the value in THS to TOS
+.macro over
+	`advance
+	lda THS_LSB,x
+	sta TOS_LSB,x
+	lda THS_MSB,x
+	sta TOS_MSB,x
+.macend
+
 ; stores the value in NOS at the address specified in TOS and drops
 ; the values from the stack.
 .macro store
@@ -242,20 +251,56 @@ _over:
         sta TOS_MSB,x
 .macend
 
+;
+; This set of macros manipulates the return stack.
+;
+
+; Moves TOS cell from the data stack to return stack.
+.macro peekToR
+	lda TOS_MSB,x
+	pha
+	lda TOS_LSB,x
+	pha
+.macend
+
+; Moves NOS cell from the data stack to return stack.
+.macro peekNosToR
+	lda NOS_MSB,x
+	pha
+	lda NOS_LSB,x
+	pha
+.macend
+
+; Moves a cell from return stack to memeory.
+.macro popFromR
+	pla
+	sta _1
+	pla
+	sta _1+1
+.macend
+
 ; Moves a cell from the data stack to return stack.
 .macro popToR
-        lda TOS_MSB,x
-        pha
-        lda TOS_LSB,x
-        pha
-        `drop
+	lda TOS_MSB,x
+	pha
+	lda TOS_LSB,x
+	pha
+	`drop
 .macend
 
 ; Moves a cell from return stack to data stack.
 .macro pushFromR
-        `advance
-        pla
-        sta TOS_LSB,x
-        pla
-        sta TOS_MSB,x
+	`advance
+	pla
+	sta TOS_LSB,x
+	pla
+	sta TOS_MSB,x
+.macend
+
+; Moves a cell from memory to return stack.
+.macro pushToR
+	lda _1+1
+	pha
+	lda _1
+	pha
 .macend
