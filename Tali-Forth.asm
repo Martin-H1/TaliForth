@@ -4314,10 +4314,7 @@ a_type:         `toszero?
                 beq _done
 
                 ; get address 
-                lda 3,x
-                sta TMPADR
-                lda 4,x
-                sta TMPADR+1
+                `peeknos TMPADR
 
                 ; we only print strings up to a length of $FF char, so
                 ; MSB of length is ignored
@@ -6339,10 +6336,7 @@ l_p0branch:     bra a_p0branch
 .scope
 a_p0branch:     ; we use the return value on the 65c02 stack to determine
                 ; where we want to return to. 
-                pla             ; LSB
-                sta TMPADR
-                pla             ; MSB
-                sta TMPADR+1
+                `popFromR TMPADR
 
                 ; see if flag is zero, which is the whole purpose of the
                 ; operation after all 
@@ -6379,16 +6373,10 @@ _zero:          ; flag is FALSE (0) so we take the jump to the address
 
                 ; We have to subtract one byte from the address given because 
                 ; of the effect of RTS
-                lda TMPADR1
-                bne +
-                dec TMPADR1+1
-*               dec TMPADR1
+                `decw TMPADR1
                
 _done:          ; now we can finally push the address to the stack
-                lda TMPADR1+1   ; MSB first
-                pha
-                lda TMPADR1     ; LSB on top 
-                pha 
+                `pushToR TMPADR1
         
 z_p0branch:     rts
 .scend
@@ -6738,20 +6726,8 @@ l_2dup:         bra a_2dup
                 .word z_2dup
                 .byte "2DUP"
 
-a_2dup:         `advance
-
-                lda 6,x         ; MSB next on stack (NOS) 
-                sta 2,x
-                lda 5,x         ; LSB NOS
-                sta 1,x
-                
-                `advance
-
-                lda 6,x         ; MSB top of stack (TOS) 
-                sta 2,x
-                lda 5,x         ; LSB TOS
-                sta 1,x
-
+a_2dup:         `over
+                `over
 z_2dup:         rts
 ; ----------------------------------------------------------------------------
 ; ?DUP ( n -- 0 | n n ) 
@@ -6812,12 +6788,7 @@ l_over:         bra a_over
                 .word z_over
                 .byte "OVER"
 
-a_over:         `advance
-
-                lda 5,x         ; LSB
-                sta 1,x
-                lda 6,x         ; MSB
-                sta 2,x
+a_over:         `over
 
 z_over:         rts
 ; -----------------------------------------------------------------------------
@@ -6833,31 +6804,18 @@ l_rfetch:       bra a_rfetch
                 .word z_rfetch
                 .byte "R@"
 
-a_rfetch:       `advance
-
+a_rfetch:
                 ; save the return address
-                pla             ; LSB
-                sta TMPADR 
-                pla             ; MSB
-                sta TMPADR+1
+                `popFromR TMPADR
 
-                ; copy the value to the parameter stack 
-                pla             ; LSB
-                sta 1,x
-                pla             ; MSB
-                sta 2,x
+                ; copy the value to the parameter stack
+	        `pushFromR
 
-                ; copy values back to the return stack 
-                lda 2,x         ; MSB
-                pha
-                lda 1,x         ; LSB
-                pha
+                ; copy values back to the return stack
+                `peekToR
 
                 ; restore return address
-                lda TMPADR+1    ; MSB
-                pha
-                lda TMPADR      ; LSB
-                pha 
+                `pushToR TMPADR
 
 z_rfetch:       rts
 ; -----------------------------------------------------------------------------
@@ -6871,19 +6829,13 @@ l_fromr:        bra a_fromr
                 .byte "R>"
 
 a_fromr:        ; save the return address
-                pla             ; LSB
-                sta TMPADR
-                pla             ; MSB
-                sta TMPADR+1
+                `popFromR TMPADR
 
                 ; now we can access the data
                 `pushFromR
 
                 ; restore return address
-                lda TMPADR+1   ; MSB
-                pha
-                lda TMPADR     ; LSB
-                pha 
+                `pushToR TMPADR
                 
 z_fromr:        rts
 ; -----------------------------------------------------------------------------
@@ -6899,19 +6851,13 @@ l_tor:          bra a_tor
                 .byte ">R"
 .scope
 a_tor:          ; save the return address
-                pla             ; LSB
-                sta TMPADR
-                pla             ; MSB
-                sta TMPADR+1
+                `popFromR TMPADR
 
                 ; now we can move the data 
                 `popToR
 
                 ; restore return address
-                lda TMPADR+1   ; MSB
-                pha
-                lda TMPADR     ; LSB
-                pha 
+                `pushToR TMPADR
 
 z_tor:          rts
 .scend
@@ -6925,31 +6871,19 @@ l_2gr:          bra a_2gr
                 .byte "2>R"
 .scope
 a_2gr:          ; save the return address
-                pla             ; LSB
-                sta TMPADR
-                pla             ; MSB
-                sta TMPADR+1
+                `popFromR TMPADR
 
-                ; now we can move the data 
-                lda 4,x         ; MSB
-                pha
-                lda 3,x         ; LSB
-                pha
+                ; Move the NOS first.
+                `peekNosToR
 
-                ; now we can move the data 
-                lda 2,x         ; MSB
-                pha
-                lda 1,x         ; LSB
-                pha
+                ; copy the TOS and drop.
+                `popToR
+
+                ; drop the nos.
+                `drop
 
                 ; restore return address
-                lda TMPADR+1   ; MSB
-                pha
-                lda TMPADR     ; LSB
-                pha 
-
-                `drop
-                `drop
+                `pushToR TMPADR
 
 z_2gr:          rts
 .scend
@@ -6997,33 +6931,23 @@ l_2rg:          bra a_2rg
                 .word z_2rg
                 .byte "2R>"
 .scope
-a_2rg:          ; make room on stack 
-                `advance
+a_2rg:          ; make room on stack for NOS copied second.
                 `advance
 
                 ; save the return address
-                pla             ; LSB
-                sta TMPADR
-                pla             ; MSB
-                sta TMPADR+1
+                `popFromR TMPADR
 
                 ; now we can access the data
-                pla             ; LSB
-                sta 1,x
-                pla             ; MSB
-                sta 2,x         
+                `pushFromR
 
-                ; now we can access the data
+                ; now we can copy the NOS data
                 pla             ; LSB
-                sta 3,x
+                sta NOS_LSB,x
                 pla             ; MSB
-                sta 4,x         
+                sta NOS_MSB,x
  
                 ; restore return address
-                lda TMPADR+1   ; MSB
-                pha
-                lda TMPADR     ; LSB
-                pha 
+                `pushToR TMPADR
  
 z_2rg:          rts             ; never reached
 .scend
