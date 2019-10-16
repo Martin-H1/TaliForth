@@ -352,11 +352,7 @@ _wordonly:      lda (TMPADR1)   ; LSB
                 ; restore the correct return address. We have already added
                 ; two to the return address, so we just need to push it on 
                 ; the stack
-*               lda TMPADR1+1   ; MSB
-                pha
-                lda TMPADR1     ; LSB
-                pha 
-
+*               `pushToR TMPADR1
                 rts
 .scend
 ; -----------------------------------------------------------------------------
@@ -697,10 +693,7 @@ _done:          rts
 .scope
 fc_docon:       ; value is stored in the two bytes after the JSR
                 ; return address
-                pla                     ; LSB of return address
-                sta TMPADR2
-                pla                     ; MSB of return address
-                sta TMPADR2+1
+                `popFromR TMPADR2
 
                 ; Increment address because of how JSR stores RTS address
                 `incw TMPADR2
@@ -842,10 +835,7 @@ a_plit:         ; get the value after the command
                 `pushind TMPADR
 
                 ; replace the new address on the stack 
-                lda TMPADR+1
-                pha
-                lda TMPADR
-                pha 
+                `pushToR TMPADR
 
 z_plit:         rts
 .scend
@@ -1055,11 +1045,8 @@ _loop:          ; if there are zero bytes left to display, we're done
                 jsr l_space
 
 _nextchar:      ; print next character
-                inc 3,x 
-                bne _counter
-                inc 4,x
-
-_counter:       ; loop counter
+                `incnos
+                ; loop counter
                 `dectos
                 dey
                 bne _loop
@@ -2642,10 +2629,7 @@ l_pdoes:        bra a_pdoes
 a_pdoes:        ; Get the address of the machine code that follows 
                 ; this instruction, which is always a subroutine jump to 
                 ; DODOES 
-                pla
-                sta TMPADR
-                pla
-                sta TMPADR+1
+                `popFromR TMPADR
 
                 ; Increase it by one because of the way the JSR works
                 `incw TMPADR
@@ -3238,10 +3222,7 @@ a_cmpc:         ; put xt on zero page where we can work with it better
                 lda TMPADR1+1
                 sta 6,x         ; MSB of source
 
-                lda CP          ; LSB of destination
-                sta 3,x
-                lda CP+1        ; MSB of destination 
-                sta 4,x
+                `loadnos CP
 
                 lda TMPADR2     ; number of bytes to copy 
                 pha             ; save it because CMOVE> uses TMPADR2
@@ -3254,7 +3235,7 @@ a_cmpc:         ; put xt on zero page where we can work with it better
                 pla             ; retrieve the length of the fragment 
                 `pusha
                 jsr l_allot 
-        
+
                 bra _done
                 
 _dojump:        ; Compile as JSR command. Add the JSR opcode ($20). We 
@@ -5053,10 +5034,7 @@ _noov:          ; if negative, NOS is larger and needs to be dumped
                 bpl _keepnos
 
                 ; move TOS to NOS
-                lda 1,x         ; LSB 
-                sta 3,x
-                lda 2,x         ; MSB
-                sta 4,x
+                `loadNosFromTos
 
 _keepnos:       `drop
 
@@ -5090,10 +5068,7 @@ _noov:          ; if negative, NOS is larger and needs to be kept
                 bmi _keepnos
 
                 ; move TOS to NOS 
-                lda 1,x
-                sta 3,x
-                lda 2,x
-                sta 4,x
+                `loadNosFromTos
 
 _keepnos:       `drop
                 
@@ -6569,24 +6544,7 @@ l_mrot:         bra a_mrot
                 .byte "-ROT"
 
 .scope
-a_mrot:         lda 2,x         ; MSB first
-                pha
-                lda 4,x
-                sta 2,x
-                lda 6,x
-                sta 4,x
-                pla
-                sta 6,x
-
-                lda 1,x         ; LSB second
-                pha
-                lda 3,x
-                sta 1,x
-                lda 5,x
-                sta 3,x
-                pla
-                sta 5,x
-
+a_mrot:         `mrot
 z_mrot:         rts
 .scend
 ; -----------------------------------------------------------------------------
@@ -6599,24 +6557,7 @@ l_rot:          bra a_rot
                 .word z_rot
                 .byte "ROT"
 
-a_rot:          lda 6,x         ; MSB first
-                pha
-                lda 4,x
-                sta 6,x
-                lda 2,x
-                sta 4,x
-                pla 
-                sta 2,x
-
-                lda 5,x         ; LSB second 
-                pha
-                lda 3,x
-                sta 5,x
-                lda 1,x
-                sta 3,x
-                pla
-                sta 1,x
-
+a_rot:          `rot
 z_rot:          rts
 ; -----------------------------------------------------------------------------
 ; TUCK ( n m -- m n m ) 
