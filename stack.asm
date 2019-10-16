@@ -174,6 +174,14 @@ _over:
 	sta _1+1
 .macend
 
+; increments the NOS value
+.macro incnos
+        inc NOS_LSB,x
+        bne _over
+        inc NOS_MSB,x
+_over:
+.macend
+
 ; loads the word at location provided to NOS
 .macro loadnos
 	lda _1
@@ -186,6 +194,14 @@ _over:
 .macro loadnosa
 	sta NOS_LSB,x
 	stz NOS_MSB,x
+.macend
+
+; loads the NOS with the value in TOS.
+.macro loadNosFromTos
+	lda TOS_LSB,x
+	sta NOS_LSB,x
+	lda TOS_MSB,x
+	sta NOS_MSB,x
 .macend
 
 ; duplicates the value at TOS on the stack.
@@ -205,10 +221,7 @@ _over:
 
 ; deletes NOS on the stack.
 .macro nip
-	lda TOS_LSB,x         ; LSB
-	sta NOS_LSB,x
-	lda TOS_MSB,x         ; MSB
-	sta NOS_MSB,x
+	`loadNosFromTos
 	`drop
 .macend
 
@@ -219,6 +232,48 @@ _over:
 	sta TOS_LSB,x
 	lda THS_MSB,x
 	sta TOS_MSB,x
+.macend
+
+; Rotate the top three entries upwards
+.macro mrot
+	lda TOS_MSB,x
+	pha
+	lda NOS_MSB,x
+	sta TOS_MSB,x
+	lda THS_MSB,x
+	sta NOS_MSB,x
+	pla
+	sta THS_MSB,x
+
+	lda TOS_LSB,x
+	pha
+	lda NOS_LSB,x
+	sta TOS_LSB,x
+	lda THS_LSB,x
+	sta NOS_LSB,x
+	pla
+	sta THS_LSB,x
+.macend
+
+; Rotate the top three entries downwards
+.macro rot
+	lda THS_MSB,x
+	pha
+	lda NOS_MSB,x
+	sta THS_MSB,x
+	lda TOS_MSB,x
+	sta NOS_MSB,x
+	pla
+	sta TOS_MSB,x
+
+	lda THS_LSB,x
+	pha
+	lda NOS_LSB,x
+	sta THS_LSB,x
+	lda TOS_LSB,x
+	sta NOS_LSB,x
+	pla
+	sta TOS_LSB,x
 .macend
 
 ; stores the value in NOS at the address specified in TOS and drops
