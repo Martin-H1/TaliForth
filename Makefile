@@ -19,7 +19,9 @@ endif
 
 SOURCES =  \
 	Tali-Forth.asm \
-	macros.asm
+	macros.asm \
+	math.asm \
+	stack.asm
 
 APPLE_SOURCES = \
 	$(SOURCES) \
