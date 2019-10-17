@@ -119,6 +119,7 @@
 .alias  TIBSIZE         $00FE   ; Size of the Terminal Input Buffer
 
 .require "stack.asm"
+.require "math.asm"
 
 ; =============================================================================
 ; INITILIZE SYSTEM (COLD BOOT)
@@ -4097,11 +4098,7 @@ a_marker:       ; This is a defining word
 
                 ; ... except that the RAM available points to the address
                 ; one byte after that
-                inc CP
-                bne _done
-                inc CP+1
-
-_done: 
+                `incw CP
 z_marker:       rts
 .scend
 ; -----------------------------------------------------------------------------
@@ -5158,16 +5155,7 @@ l_xor:          bra a_xor
                 .word z_xor
                 .byte "XOR"
 
-a_xor:          lda 1,x         ; LSB
-                eor 3,x
-                sta 3,x
-
-                lda 2,x         ; MSB
-                eor 4,x         
-                sta 4,x
-
-                `drop
-
+a_xor:          `xorw
 z_xor:          rts
 ; -----------------------------------------------------------------------------
 ; OR ( x x -- x )
@@ -5177,16 +5165,7 @@ l_or:           bra a_or
                 .word z_or
                 .byte "OR"
 
-a_or:           lda 1,x         ; LSB
-                ora 3,x
-                sta 3,x
-
-                lda 2,x         ; MSB
-                ora 4,x         
-                sta 4,x
-
-                `drop
-
+a_or:           `orw
 z_or:           rts
 ; -----------------------------------------------------------------------------
 ; AND ( x x -- x )  
@@ -5196,16 +5175,7 @@ l_and:          bra a_and
                 .word z_and
                 .byte "AND"
 .scope
-a_and:          lda 1,x         ; LSB
-                and 3,x
-                sta 3,x
-                
-                lda 2,x         ; MSB
-                and 4,x
-                sta 4,x
-
-                `drop
-
+a_and:          `andw
 z_and:          rts
 .scend
 ; ----------------------------------------------------------------------------
@@ -6385,10 +6355,7 @@ l_pbranch:      bra a_pbranch
 .scope
 a_pbranch:      ; we use the return value on the 65c02 stack to determine
                 ; where we want to return to. 
-                pla             ; LSB
-                sta TMPADR
-                pla             ; MSB
-                sta TMPADR+1
+                `popFromR TMPADR
 
                 ; Note that the address on the 65c02 stack points to the 
                 ; last byte of the JSR instruction, not the next byte 
@@ -6402,16 +6369,10 @@ a_pbranch:      ; we use the return value on the 65c02 stack to determine
 
                 ; We have to subtract one byte from the address 
                 ; given because of the effect of RTS
-                lda TMPADR1
-                bne +
-                dec TMPADR1+1
-*               dec TMPADR1
-               
-_done:          ; now we can finally push the address to the stack
-                lda TMPADR1+1   ; MSB first
-                pha
-                lda TMPADR1     ; LSB on top 
-                pha 
+                `decw TMPADR1
+
+                ; now we can finally push the address to the stack
+                `pushToR TMPADR1
 
 z_pbranch:      rts
 .scend
@@ -6568,25 +6529,20 @@ l_tuck:         bra a_tuck
                 .word z_tuck
                 .byte "TUCK"
 
-a_tuck:         `advance
-
-                ; move m to TOS 
-                lda 3,x         ; LSB
-                sta 1,x         
-                lda 4,x         ; MSB
-                sta 2,x
+a_tuck:         ; well need three cells, so dup top one.
+                `dup
 
                 ; move n to old m
-                lda 5,x         ; LSB
-                sta 3,x         
-                lda 6,x         ; MSB
-                sta 4,x
+                lda THS_LSB,x
+                sta NOS_LSB,x
+                lda THS_MSB,x
+                sta NOS_MSB,x
 
                 ; write m over old n
-                lda 1,x         ; LSB
-                sta 5,x
-                lda 2,x         ; MSB
-                sta 6,x
+                lda TOS_LSB,x
+                sta THS_LSB,x
+                lda TOS_MSB,x
+                sta THS_MSB,x
 
 z_tuck:         rts
 ; -----------------------------------------------------------------------------
