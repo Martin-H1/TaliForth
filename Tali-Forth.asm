@@ -4364,11 +4364,13 @@ a_0lt:          lda 2,x         ; MSB
                 bmi +
 
                 ; TOS is positive, so return FALSE (zero on stack)
-                `loadtoszero
-                rts
+                lda #$00
+                bra _store
 
 *               ; TOS is negative, so return TRUE ($FFFF on stack)
-                `loadtostrue
+                lda #$FF
+
+_store:         `loadtosaa
 
 z_0lt:          rts
 .scend
@@ -4391,8 +4393,7 @@ a_0equ:         `toszero?
 *               ; TOS is $0000, so store $FFFF on stack 
                 lda #$FF
 
-_store:         sta 1,x
-                sta 2,x 
+_store:         `loadtosaa
 
 z_0equ:         rts
 .scend
@@ -4417,10 +4418,8 @@ a_grthan:       ; compare TOS and NOS
 
 _false:         lda #$00        ; drop through to _done 
 
-_done:          sta 3,x
-                sta 4,x
-                `drop
-
+_done:          `drop
+                `loadtosaa
 z_grthan:       rts
 .scend
 ; ----------------------------------------------------------------------------
@@ -4445,9 +4444,8 @@ a_equal:        ; compare LSB and MSB in sequence
 
 _false:         lda #$00        ; drop through to _done 
 
-_done:          sta 3,x
-                sta 4,x
-                `drop
+_done:          `drop
+                `loadtosaa
 
 z_equal:        rts
 .scend
@@ -4471,10 +4469,8 @@ a_lessthan:     ; compare TOS and NOS
 
 _false:         lda #$00        ; drop through to _done 
 
-_done:          sta 3,x
-                sta 4,x
-                `drop
-
+_done:          `drop
+                `loadtosaa
 z_lessthan:     rts
 .scend
 ; -----------------------------------------------------------------------------
@@ -5112,17 +5108,7 @@ l_negate:       bra a_negate
                 .word z_negate
                 .byte "NEGATE"
 .scope
-a_negate:       lda 1,x         ; LSB
-                eor #$FF
-                clc
-                adc #$01
-                sta 1,x
-
-                lda 2,x         ; MSB
-                eor #$FF
-                adc #$00        ; we only care about the carry
-                sta 2,x
-
+a_negate:       `negate
 z_negate:       rts
 .scend
 ; -----------------------------------------------------------------------------
@@ -5134,17 +5120,7 @@ l_invert:       bra a_invert
                 .word z_invert
                 .byte "INVERT"
 
-a_invert:       `pushi $FFFF      ; still cotains $FF, continue with MSB
-
-                eor 4,x         
-                sta 4,x
-
-                lda 1,x         ; LSB 
-                eor 3,x
-                sta 3,x
-
-                `drop
-
+a_invert:       `invert
 z_invert:       rts
 .scend 
 ; -----------------------------------------------------------------------------
