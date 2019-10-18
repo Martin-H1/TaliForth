@@ -87,6 +87,12 @@ _over:
 	stz TOS_MSB,x
 .macend
 
+; loads TOS MSB and LSB with the accumulator.
+.macro loadtosaa
+	sta TOS_LSB,x
+	sta TOS_MSB,x
+.macend
+
 ; loads TOS with true (-1)
 .macro loadtostrue
 	lda #$FF
