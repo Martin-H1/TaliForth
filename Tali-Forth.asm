@@ -720,7 +720,7 @@ fc_dovar:       ; pull return address off of the machine's stack, adding one
                 sta TMPADR2+1   ; MSB
 
                 ; get variable and push it on the stack 
-                `pushv TMPADR2
+                `push TMPADR2
 
                 rts
 .scend
@@ -1151,14 +1151,8 @@ _no_co:         jsr l_cr
                 jsr f_wrtzerostr
                 jsr l_space
 
-                `advance        ; use >NAME to print name of string
-
                 ldy #$03        ; offset to link field
-                lda (TMPADR2),y
-                sta 1,x
-                iny
-                lda (TMPADR2),y
-                sta 2,x
+                `pushIdy TMPADR2
 
                 jsr l_dup       ; print link as number
                 jsr l_udot 
@@ -1367,7 +1361,7 @@ _nochrs:        ; Only spaces found. Return beginning of CIB
                 ; usually means we're at the end of the line.
 
                 ; return head of CIB as address
-                `pushv CIBA
+                `push CIBA
 
                 ; return zero as number of chars 
                 `pushzero     ; fall through to _done
@@ -2251,16 +2245,8 @@ a_number:       ; make sure u is not zero
                 ; negative number. Set flag and move to next character
                 inc FLAG2       ; non-zero means "minus"
 
-                clc             ; move address one byte down 
-                lda 3,x
-                inc
-                sta 3,x
-                bne +
-                lda 4,x
-                inc
-                sta 4,x
-
-*               lda 1,x         ; subtract one from length 
+                `incnos         ; move address one byte down 
+                lda 1,x         ; subtract one from length 
                 dec
                 sta 1,x
 
@@ -2465,10 +2451,10 @@ l_source:       bra a_source
                 .byte "SOURCE"
 .scope
 a_source:       ; Address of Input Buffer
-                `pushv CIBA
+                `push CIBA
 
                 ; Number of chars in Buffer
-                `pushv CIBN
+                `push CIBN
 
 z_source:       rts
 .scend
@@ -3245,22 +3231,15 @@ _dojump:        ; Compile as JSR command. Add the JSR opcode ($20). We
                 sta (CP)
 
                 ldy #$01        
-                lda 1,x         ; LSB of address
-                sta (CP),y
-
-                iny             
-                lda 2,x         ; MSB
-                sta (CP),y
+                `popIdy CP
 
                 ; allot space we just used 
                 lda #$03
                 clc
                 adc CP
                 sta CP
-                bcc + 
+                bcc _done
                 inc CP+1 
-
-*               `drop           ; drop xt
 _done: 
 z_cmpc:         rts
 .scend
@@ -4157,7 +4136,7 @@ l_here:         bra a_here
                 .word z_here
                 .byte "HERE"
 
-a_here:         `pushv CP
+a_here:         `push CP
 
 z_here:         rts
 ; -----------------------------------------------------------------------------
@@ -6126,7 +6105,7 @@ a_do:           ; DO and ?DO share most of their code, use the FLAG2 to
 
 do_common:      ; we push HERE to the Data Stack so LOOP/+LOOP
                 ; knows where to compile the PHA instructions. 
-                `pushv CP
+                `push CP
 
                 ; now we compile six dummy bytes that LOOP/+LOOP will
                 ; replace by the actual LDA/PHA instructions
@@ -6162,7 +6141,7 @@ _do_cmpl:       `pushi l_pdo    ; add xt of (DO) to the stack
                 ; HERE, hardcoded for speed. We put it on the Data Stack
                 ; where LOOP/+LOOP takes it from. Note this has nothing to
                 ; do with the HERE we're saving for LEAVE
-                `pushv CP
+                `push CP
 
 z_do:           rts
 .scend
@@ -6241,7 +6220,7 @@ l_begin:        bra a_begin
                 .byte "BEGIN"
 
 a_begin:        ; same code as HERE, for speed     
-                `pushv CP
+                `push CP
 
 z_begin:        rts
 ; ----------------------------------------------------------------------------
