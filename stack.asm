@@ -72,12 +72,21 @@ _over:
         sta TOS_MSB,x
 .macend
 
-;  loads the value by dereferencing the pointer at the argument.
+; loads the value by dereferencing the pointer at the argument.
 .macro loadtosind
 	lda (_1)
 	sta TOS_LSB,x
 	`incw _1
 	lda (_1)
+	sta TOS_MSB,x
+.macend
+
+; loads the value by using indirect y address of the argument.
+.macro loadTosIdy
+	lda (_1),y
+	sta TOS_LSB,x
+	iny
+	lda (_1),y
 	sta TOS_MSB,x
 .macend
 
@@ -130,9 +139,24 @@ _over:
 	sta _1+1
 .macend
 
+; Nondestructively saves the word at TOS using indirect y addressing.
+.macro peekIdy
+	lda TOS_LSB,x
+	sta (_1),y
+	iny
+	lda TOS_MSB,x
+	sta (_1),y
+.macend
+
 ; Destructively saves the word at TOS to the location provided.
 .macro pop
 	`peek _1
+	`drop
+.macend
+
+; Destructively saves the word at TOS using indirect y addressing.
+.macro popIdy
+	`peekIdy _1
 	`drop
 .macend
 
@@ -149,7 +173,7 @@ _over:
 .macend
 
 ; pushes the value at the address specified at the argument.
-.macro pushv
+.macro push
         `advance
 	`loadtos _1
 .macend
@@ -158,6 +182,12 @@ _over:
 .macro pushind
         `advance
         `loadtosind _1
+.macend
+
+;  pushes the value by using indirect y addressing of the argument.
+.macro pushIdy
+        `advance
+        `loadTosIdy _1
 .macend
 
 ; pushes true onto the stack
