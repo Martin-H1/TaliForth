@@ -659,28 +659,7 @@ _err:           lda #$08        ; string code for wrong channel
 ; Compared to the book routine, WORD1 (MINUED) is TOS 
 ;                               WORD2 (SUBTRAHEND) is NOS
 .scope
-f_cmp16:        ; compare LSB. We do this first to set the Carry Flag
-                lda 1,x         ; LSB of TOS
-                cmp 3,x         ; LSB of NOS 
-                beq _equal 
-
-                ; low bytes are not equal, compare MSB
-                lda 2,x         ; MSB of TOS
-                sbc 4,x         ; MSB of NOS 
-                ora #$01        ; Make Zero Flag 0 because we're not equal
-                bvs _overflow 
-                bra _notequal
-
-_equal:         ; low bytes are equal, so we compare high bytes
-                lda 2,x         ; MSB of TOS
-                sbc 4,x         ; MSB of NOS 
-                bvc _done
-
-_overflow:      ; handle overflow because we use signed numbers
-                eor #$80        ; complement negative flag
-
-_notequal:      ora #$01        ; if overflow, we can't be equal 
-
+f_cmp16:        `comparew
 _done:          rts 
 .scend 
 ; =============================================================================
@@ -4409,23 +4388,7 @@ l_equal:        bra a_equal
                 .word z_equal
                 .byte "="
 .scope
-a_equal:        ; compare LSB and MSB in sequence 
-                lda 1,x         ; LSB 
-                cmp 3,x
-                bne _false 
-
-                lda 2,x         ; MSB
-                cmp 4,x
-                bne _false
-
-                lda #$FF
-                bra _done 
-
-_false:         lda #$00        ; drop through to _done 
-
-_done:          `drop
-                `loadtosaa
-
+a_equal:        `equalw
 z_equal:        rts
 .scend
 ; ----------------------------------------------------------------------------
@@ -4936,20 +4899,7 @@ l_rshift:       bra a_rshift
                 .word z_rshift
                 .byte "RSHIFT"
 .scope
-a_rshift:       ; max 16 bit shift, so we mask everything else. We completely
-                ; ignore the MSB of u 
-                lda 1,x
-                and #%00001111
-                beq _done         ; if it is zero, don't do anything
-
-                tay
-*               lsr 4,x
-                ror 3,x
-                dey
-                bne - 
-
-_done:          `drop
-
+a_rshift:       `rshift
 z_rshift:       rts
 .scend
 ; ----------------------------------------------------------------------------
@@ -4962,20 +4912,7 @@ l_lshift:       bra a_lshift
                 .word z_lshift
                 .byte "LSHIFT"
 .scope
-a_lshift:       ; max 16 bit shift, so we mask everything else. We completely
-                ; ignore the MSB of u 
-                lda 1,x
-                and #%00001111
-                beq _done         ; if it is zero, don't do anything
-
-                tay
-*               asl 3,x
-                rol 4,x
-                dey
-                bne - 
-
-_done:          `drop
-
+a_lshift:       `lshift
 z_lshift:       rts
 .scend
 ; ----------------------------------------------------------------------------
@@ -5583,17 +5520,7 @@ l_minus:        bra a_minus
                 .word z_minus
                 .byte "-"
 
-a_minus:        sec
-                lda 3,x         ; LSB
-                sbc 1,x
-                sta 3,x
-
-                lda 4,x         ; MSB
-                sbc 2,x
-                sta 4,x
-
-                `drop
-
+a_minus:        `subw
 z_minus:        rts
 ; -----------------------------------------------------------------------------
 ; PLUS ( x x -- x ) ("+")
@@ -5604,17 +5531,7 @@ l_plus:         bra a_plus
                 .word z_plus
                 .byte "+"
 
-a_plus:         clc
-                lda 1,x         ; LSB
-                adc 3,x
-                sta 3,x
-
-                lda 2,x         ; MSB
-                adc 4,x
-                sta 4,x
-
-                `drop
-
+a_plus:         `addw
 z_plus:         rts
 ; ----------------------------------------------------------------------------
 ; DABS ( d -- ud ) 
