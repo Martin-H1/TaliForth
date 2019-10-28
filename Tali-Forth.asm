@@ -4992,27 +4992,7 @@ l_dnegate:      bra a_dnegate
                 .word z_dnegate
                 .byte "DNEGATE"
 .scope
-a_dnegate:      lda 3,x         ; LSB of low cell
-                eor #$FF
-                clc 
-                adc #$01
-                sta 3,x
-
-                lda 4,x         ; MSB of low cell
-                eor #$FF
-                adc #$00        ; we only care about the carry
-                sta 4,x
-
-                lda 1,x         ; LSB of high cell
-                eor #$FF
-                adc #$00
-                sta 1,x
-
-                lda 2,x         ; MSB of high cell
-                eor #$FF
-                adc #$00
-                sta 2,x
-
+a_dnegate:      `dnegate
 z_dnegate:      rts
 .scend
 ; ----------------------------------------------------------------------------
@@ -6441,26 +6421,20 @@ l_2swap:        bra a_2swap
 a_2swap:        ; TODO see if we have enough stuff on the stack 
 
                 ; exchange n4 with n2
-                lda 1,x         ; LSB of n4
-                pha 
-                lda 2,x         ; MSB of n4
-                pha 
+                `peekToR
 
                 lda 5,x         ; LSB of n2
                 sta 1,x
                 lda 6,x         ; MSB of n2
                 sta 2,x
 
-                pla 
-                sta 6,x
                 pla
                 sta 5,x
+                pla
+                sta 6,x
 
                 ; exchange n3 with n1
-                lda 3,x         ; LSB of n3
-                pha
-                lda 4,x         ; MSB of n3
-                pha
+                `peekNosToR
 
                 lda 7,x         ; LSB of n1
                 sta 3,x
@@ -6468,9 +6442,9 @@ a_2swap:        ; TODO see if we have enough stuff on the stack
                 sta 4,x
 
                 pla
-                sta 8,x
-                pla
                 sta 7,x
+                pla
+                sta 8,x
 
 z_2swap:        rts
 .scend
