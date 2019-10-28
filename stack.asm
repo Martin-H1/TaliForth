@@ -372,10 +372,7 @@ _over:
 
 ; Moves a cell from the data stack to return stack.
 .macro popToR
-	lda TOS_MSB,x
-	pha
-	lda TOS_LSB,x
-	pha
+	`peekToR
 	`drop
 .macend
 
