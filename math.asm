@@ -89,6 +89,29 @@ _while:	asl NOS_LSB,x
 _done:	`drop
 .macend
 
+.macro dnegate
+	lda NOS_LSB,x
+	eor #$FF
+	clc
+	adc #$01
+	sta NOS_LSB,x
+
+	lda NOS_MSB,x
+	eor #$FF
+	adc #$00
+	sta NOS_MSB,x
+
+	lda TOS_LSB,x
+	eor #$FF
+	adc #$00
+	sta TOS_LSB,x
+
+	lda TOS_MSB,x
+	eor #$FF
+	adc #$00
+	sta TOS_MSB,x
+.macend
+
 .macro negate
 	lda TOS_LSB,x
 	eor #$FF        ; invert and add one
