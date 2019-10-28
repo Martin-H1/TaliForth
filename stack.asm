@@ -105,8 +105,7 @@ _over:
 ; loads TOS with true (-1)
 .macro loadtostrue
 	lda #$FF
-	sta TOS_LSB,x
-	sta TOS_MSB,x
+	`loadtosaa
 .macend
 
 ; makes the TOS zero
@@ -240,13 +239,18 @@ _over:
 	sta NOS_MSB,x
 .macend
 
+; loads the TOS with the value in NOS.
+.macro loadTosFromNos
+	lda NOS_LSB,x		; copy the word.
+	sta TOS_LSB,x
+	lda NOS_MSB,x
+	sta TOS_MSB,x
+.macend
+
 ; duplicates the value at TOS on the stack.
 .macro dup
-        `advance
-        lda NOS_LSB,x		; copy the word.
-        sta TOS_LSB,x
-        lda NOS_MSB,x
-        sta TOS_MSB,x
+	`advance
+	`loadTosFromNos
 .macend
 
 ; fetch dereferences the current TOS and replaces the value on TOS.
@@ -272,42 +276,31 @@ _over:
 
 ; Rotate the top three entries upwards
 .macro mrot
-	lda TOS_MSB,x
-	pha
-	lda NOS_MSB,x
-	sta TOS_MSB,x
+	`peekToR
+	`loadTosFromNos
+	lda THS_LSB,x
+	sta NOS_LSB,x
 	lda THS_MSB,x
 	sta NOS_MSB,x
 	pla
-	sta THS_MSB,x
-
-	lda TOS_LSB,x
-	pha
-	lda NOS_LSB,x
-	sta TOS_LSB,x
-	lda THS_LSB,x
-	sta NOS_LSB,x
-	pla
 	sta THS_LSB,x
+	pla
+	sta THS_MSB,x
 .macend
 
 ; Rotate the top three entries downwards
 .macro rot
-	lda THS_MSB,x
-	pha
-	lda NOS_MSB,x
-	sta THS_MSB,x
-	lda TOS_MSB,x
-	sta NOS_MSB,x
-	pla
-	sta TOS_MSB,x
-
 	lda THS_LSB,x
+	pha
+	lda THS_MSB,x
 	pha
 	lda NOS_LSB,x
 	sta THS_LSB,x
-	lda TOS_LSB,x
-	sta NOS_LSB,x
+	lda NOS_MSB,x
+	sta THS_MSB,x
+	`loadNosFromTos
+	pla
+	sta TOS_MSB,x
 	pla
 	sta TOS_LSB,x
 .macend
@@ -327,19 +320,12 @@ _over:
 
 ; swaps top of stack (TOS) to next on stack (NOS)
 .macro swap
-        lda NOS_LSB,x		; LSB of both words first
-        pha			; use stack as a temporary
-        lda TOS_LSB,x
-        sta NOS_LSB,x
-        pla
-        sta TOS_LSB,x
-
-        lda NOS_MSB,x		; MSB next
-        pha
-        lda TOS_MSB,x
-        sta NOS_MSB,x
-        pla
-        sta TOS_MSB,x
+	`peekNosToR
+	`loadNosFromTos
+	pla
+	sta TOS_LSB,x
+	pla
+	sta TOS_MSB,x
 .macend
 
 ;
